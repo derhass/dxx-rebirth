@@ -21,6 +21,9 @@ DATA_SUBDIR = '/share/games/d1x-rebirth'
 BIN_DIR = PREFIX + BIN_SUBDIR
 DATA_DIR = PREFIX + DATA_SUBDIR
 
+# Paths for the Videocore libs/includes on the Raspberry Pi
+RPI_DEFAULT_VC_PATH='/opt/vc'
+
 # command-line parms
 sharepath = str(ARGUMENTS.get('sharepath', DATA_DIR))
 debug = int(ARGUMENTS.get('debug', 0))
@@ -35,6 +38,7 @@ use_udp = int(ARGUMENTS.get('use_udp', 1))
 use_tracker = int(ARGUMENTS.get('use_tracker', 1))
 verbosebuild = int(ARGUMENTS.get('verbosebuild', 0))
 raspberrypi = int(ARGUMENTS.get('raspberrypi', 0))
+rpi_vc_path = str(ARGUMENTS.get('rpi_vc_path', RPI_DEFAULT_VC_PATH))
 
 # automatic setup for raspberrypi
 if (raspberrypi == 1):
@@ -428,8 +432,10 @@ if (use_udp == 1):
 		
 # Raspberry Pi?
 if (raspberrypi == 1):
-	print "building for raspberry pi"
+	print "using Raspberry Pi vendor libs in %s" % rpi_vc_path
 	env.Append(CPPDEFINES = ['RPI'])
+	env.Append(CPPPATH = [rpi_vc_path+'/include', rpi_vc_path+'/include/interface/vcos/pthreads'])
+	lflags += ' -L'+rpi_vc_path+'/lib'
 
 print '\n'
 
@@ -470,7 +476,8 @@ Help(PROGRAM_NAME + ', SConstruct file help:' +
 	'use_udp=[0/1]'       enable UDP support [default: 1]
 	'use_tracker=[0/1]'   enable Tracker support (requires udp) [default :1]
 	'verbosebuild=[0/1]'  print out all compiler/linker messages during building [default: 0]
-	'raspberrypi=[0/1]'   build for raspberry pi (automatically sets opengles=2) [default: 0]
+	'raspberrypi=[0/1]'   build for Raspberry Pi (automatically sets opengles=2) [default: 0]
+	'rpi_vc_path=[DIR]'   use [DIR] to look for VideoCore libraries/header files (RPi only) [default: ' + RPI_DEFAULT_VC_PATH + ']
 		
 	Default values:
 	""" + ' sharepath = ' + DATA_DIR + """

@@ -6,7 +6,11 @@
 
 #define DECLARE_VARS
 
+#ifdef RPI
+// extra libraries for the Raspberry Pi
 #include  "bcm_host.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -52,7 +56,7 @@
 #include <OpenGL/glu.h>
 #else
 #ifdef OGLES
-#include <GLES/egl.h>
+#include <EGL/egl.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <SDL/SDL_syswm.h>
@@ -108,7 +112,7 @@ int ogl_init_window(int x, int y)
 #ifdef OGLES
 	SDL_SysWMinfo info;
 	Window    x11Window = 0;
-	Display*  x11Display = NULL;
+	Display*  x11Display = 0;
 	EGLint    ver_maj, ver_min;
 	EGLint configAttribs[] =
 	{
@@ -120,60 +124,65 @@ int ogl_init_window(int x, int y)
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES_BIT,
 		EGL_NONE, EGL_NONE
 	};
-	        EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 1, EGL_NONE, EGL_NONE };
-		        EGLint winAttribs[] = { EGL_RENDER_BUFFER, EGL_BACK_BUFFER, EGL_NONE, EGL_NONE };
+
+	// explicitely request an OpenGL ES 1.x context
+        EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 1, EGL_NONE, EGL_NONE };
+	// explicitely request a doublebuffering window
+        EGLint winAttribs[] = { EGL_RENDER_BUFFER, EGL_BACK_BUFFER, EGL_NONE, EGL_NONE };
 
 	int iConfigs;
+#ifdef RPI
+	// this stuff is currently only a hack for the Raspberry Pi
+	// make a fullscreen "window"
+
+	// this code is based on the work of Ben O'Steen
+	// http://benosteen.wordpress.com/2012/04/27/using-opengl-es-2-0-on-the-raspberry-pi-without-x-windows/
+	// https://github.com/benosteen/opengles-book-samples/tree/master/Raspi
 	static EGL_DISPMANX_WINDOW_T nativewindow;
-	if (1) {
+	DISPMANX_ELEMENT_HANDLE_T dispman_element;
+	DISPMANX_DISPLAY_HANDLE_T dispman_display;
+	DISPMANX_UPDATE_HANDLE_T dispman_update;
+	VC_RECT_T dst_rect;
+	VC_RECT_T src_rect;
 
-   DISPMANX_ELEMENT_HANDLE_T dispman_element;
-   DISPMANX_DISPLAY_HANDLE_T dispman_display;
-   DISPMANX_UPDATE_HANDLE_T dispman_update;
-   VC_RECT_T dst_rect;
-   VC_RECT_T src_rect;
-
-
-   int display_width;
-   int display_height;
+	uint32_t display_width;
+	uint32_t display_height;
 	int success;
 
-   // create an EGL window surface, passing context width/height
-   success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
-   if ( success < 0 )
-   {
-      return EGL_FALSE;
-   }
-
-   // You can hardcode the resolution here:
-   display_width = 640;
-   display_height = 480;
-
-   dst_rect.x = 0;
-   dst_rect.y = 0;
-   dst_rect.width = display_width;
-   dst_rect.height = display_height;
-
-   src_rect.x = 0;
-   src_rect.y = 0;
-   src_rect.width = display_width << 16;
-   src_rect.height = display_height << 16;
-
-   dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
-   dispman_update = vc_dispmanx_update_start( 0 );
-
-   dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
-      0/*layer*/, &dst_rect, 0/*src*/,
-      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
-
-   nativewindow.element = dispman_element;
-   nativewindow.width = display_width;
-   nativewindow.height = display_height;
-   vc_dispmanx_update_submit_sync( dispman_update );
-
+	// create an EGL window surface, passing context width/height
+	success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+	if ( success < 0 ) {
+		Error("Could not get RPi display size\n");
 	}
-	
-#endif
+
+	dst_rect.x = 0;
+	dst_rect.y = 0;
+	dst_rect.width = display_width;
+	dst_rect.height = display_height;
+
+	src_rect.x = 0;
+	src_rect.y = 0;
+	src_rect.width = display_width << 16;
+	src_rect.height = display_height << 16;
+
+	dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+	dispman_update = vc_dispmanx_update_start( 0 );
+
+	dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
+							0/*layer*/, &dst_rect, 0/*src*/,
+							&src_rect, DISPMANX_PROTECTION_NONE,
+							0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
+
+	nativewindow.element = dispman_element;
+	nativewindow.width = display_width;
+	nativewindow.height = display_height;
+	vc_dispmanx_update_submit_sync( dispman_update );
+
+	// TODO: very evil hack
+	sdl_video_flags=0;
+#endif // RPI
+
+#endif // OGLES
 
 	if (gl_initialized)
 		ogl_smash_texture_list_internal();//if we are or were fullscreen, changing vid mode will invalidate current textures
@@ -181,7 +190,6 @@ int ogl_init_window(int x, int y)
 	SDL_WM_SetCaption(DESCENT_VERSION, "Descent");
 	SDL_WM_SetIcon( SDL_LoadBMP( "d1x-rebirth.bmp" ), NULL );
 
-	sdl_video_flags=0;
 	if (!SDL_SetVideoMode(x, y, GameArg.DbgBpp, sdl_video_flags))
 	{
 		Error("Could not set %dx%dx%d opengl video mode: %s\n", x, y, GameArg.DbgBpp, SDL_GetError());
@@ -205,8 +213,11 @@ int ogl_init_window(int x, int y)
 		}
 	}
 	
-	
+#ifdef RPI
 	eglDisplay = eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY);
+#else
+	eglDisplay = eglGetDisplay((EGLNativeDisplayType)x11Display);
+#endif
 	if (eglDisplay == EGL_NO_DISPLAY) {
 		con_printf(CON_URGENT, "EGL: Error querying EGL Display\n");
 	}
@@ -221,8 +232,11 @@ int ogl_init_window(int x, int y)
 	} else {
 		con_printf(CON_URGENT, "EGL: Choosed config\n", ver_maj, ver_min);
 	}
-
+#ifdef RPI
 	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (EGLNativeWindowType)&nativewindow, winAttribs);
+#else
+	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)x11Window, winAttribs);
+#endif
 	if (!TestEGLError("eglCreateWindowSurface")) {
 		con_printf(CON_URGENT, "EGL: Error creating window surface\n");
 	} else {
@@ -384,7 +398,12 @@ int gr_list_modes( u_int32_t gsmodes[] )
 	SDL_Rect** modes;
 	int i = 0, modesnum = 0;
 #ifdef OGLES
+#ifdef RPI
+	// TODO: what am I doing here???
 	int sdl_check_flags = 0; //SDL_FULLSCREEN; // always use Fullscreen as lead.
+#else
+	int sdl_check_flags = SDL_FULLSCREEN; // always use Fullscreen as lead.
+#endif
 #else
 	int sdl_check_flags = SDL_OPENGL | SDL_FULLSCREEN; // always use Fullscreen as lead.
 #endif
@@ -537,7 +556,12 @@ int gr_init(int mode)
 	if (gr_installed==1)
 		return -1;
 
+#ifdef RPI
+	// Initialize the broadcom host library
+	// we have to call this before we can create an OpenGL ES context
 	bcm_host_init();
+#endif
+
 #ifdef _WIN32
 	ogl_init_load_library();
 #endif
