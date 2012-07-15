@@ -6,6 +6,7 @@
 
 #define DECLARE_VARS
 
+#include  "bcm_host.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -107,7 +108,7 @@ int ogl_init_window(int x, int y)
 #ifdef OGLES
 	SDL_SysWMinfo info;
 	Window    x11Window = 0;
-	Display*  x11Display = 0;
+	Display*  x11Display = NULL;
 	EGLint    ver_maj, ver_min;
 	EGLint configAttribs[] =
 	{
@@ -117,9 +118,61 @@ int ogl_init_window(int x, int y)
 		EGL_DEPTH_SIZE, 16,
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES_BIT,
-		EGL_NONE
+		EGL_NONE, EGL_NONE
 	};
+	        EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 1, EGL_NONE, EGL_NONE };
+		        EGLint winAttribs[] = { EGL_RENDER_BUFFER, EGL_BACK_BUFFER, EGL_NONE, EGL_NONE };
+
 	int iConfigs;
+	static EGL_DISPMANX_WINDOW_T nativewindow;
+	if (1) {
+
+   DISPMANX_ELEMENT_HANDLE_T dispman_element;
+   DISPMANX_DISPLAY_HANDLE_T dispman_display;
+   DISPMANX_UPDATE_HANDLE_T dispman_update;
+   VC_RECT_T dst_rect;
+   VC_RECT_T src_rect;
+
+
+   int display_width;
+   int display_height;
+	int success;
+
+   // create an EGL window surface, passing context width/height
+   success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+   if ( success < 0 )
+   {
+      return EGL_FALSE;
+   }
+
+   // You can hardcode the resolution here:
+   display_width = 640;
+   display_height = 480;
+
+   dst_rect.x = 0;
+   dst_rect.y = 0;
+   dst_rect.width = display_width;
+   dst_rect.height = display_height;
+
+   src_rect.x = 0;
+   src_rect.y = 0;
+   src_rect.width = display_width << 16;
+   src_rect.height = display_height << 16;
+
+   dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+   dispman_update = vc_dispmanx_update_start( 0 );
+
+   dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
+      0/*layer*/, &dst_rect, 0/*src*/,
+      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
+
+   nativewindow.element = dispman_element;
+   nativewindow.width = display_width;
+   nativewindow.height = display_height;
+   vc_dispmanx_update_submit_sync( dispman_update );
+
+	}
+	
 #endif
 
 	if (gl_initialized)
@@ -128,6 +181,7 @@ int ogl_init_window(int x, int y)
 	SDL_WM_SetCaption(DESCENT_VERSION, "Descent");
 	SDL_WM_SetIcon( SDL_LoadBMP( "d1x-rebirth.bmp" ), NULL );
 
+	sdl_video_flags=0;
 	if (!SDL_SetVideoMode(x, y, GameArg.DbgBpp, sdl_video_flags))
 	{
 		Error("Could not set %dx%dx%d opengl video mode: %s\n", x, y, GameArg.DbgBpp, SDL_GetError());
@@ -151,7 +205,11 @@ int ogl_init_window(int x, int y)
 		}
 	}
 	
-	eglDisplay = eglGetDisplay((NativeDisplayType)x11Display);
+	
+	eglDisplay = eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY);
+	if (eglDisplay == EGL_NO_DISPLAY) {
+		con_printf(CON_URGENT, "EGL: Error querying EGL Display\n");
+	}
 	if (!eglInitialize(eglDisplay, &ver_maj, &ver_min)) {
 		con_printf(CON_URGENT, "EGL: Error initializing EGL\n");
 	} else {
@@ -163,15 +221,15 @@ int ogl_init_window(int x, int y)
 	} else {
 		con_printf(CON_URGENT, "EGL: Choosed config\n", ver_maj, ver_min);
 	}
-	
-	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)x11Window, NULL);
+
+	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (EGLNativeWindowType)&nativewindow, winAttribs);
 	if (!TestEGLError("eglCreateWindowSurface")) {
 		con_printf(CON_URGENT, "EGL: Error creating window surface\n");
 	} else {
 		con_printf(CON_URGENT, "EGL: Created window surface\n");
 	}
 	
-	eglContext = eglCreateContext(eglDisplay, eglConfig, NULL, NULL);
+	eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs);
 	if (!TestEGLError("eglCreateContext")) {
 		con_printf(CON_URGENT, "EGL: Error creating context\n");
 	} else {
@@ -326,7 +384,7 @@ int gr_list_modes( u_int32_t gsmodes[] )
 	SDL_Rect** modes;
 	int i = 0, modesnum = 0;
 #ifdef OGLES
-	int sdl_check_flags = SDL_FULLSCREEN; // always use Fullscreen as lead.
+	int sdl_check_flags = 0; //SDL_FULLSCREEN; // always use Fullscreen as lead.
 #else
 	int sdl_check_flags = SDL_OPENGL | SDL_FULLSCREEN; // always use Fullscreen as lead.
 #endif
@@ -479,6 +537,7 @@ int gr_init(int mode)
 	if (gr_installed==1)
 		return -1;
 
+	bcm_host_init();
 #ifdef _WIN32
 	ogl_init_load_library();
 #endif

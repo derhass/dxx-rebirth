@@ -340,7 +340,7 @@ else:
 	ogldefines = ['OGL']
 	libs += env['LIBS']
 	if (opengles == 1):
-		ogllibs = ['GLES_CM', 'EGL']
+		ogllibs = ['GLESv2_static', 'EGL']
 	else:
 		ogllibs = ['GL', 'GLU']
 	lflags = '-L/usr/X11R6/lib'
