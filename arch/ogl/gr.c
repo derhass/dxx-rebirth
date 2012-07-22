@@ -133,7 +133,6 @@ int ogl_init_window(int x, int y)
 	int iConfigs;
 #ifdef RPI
 	// this stuff is currently only a hack for the Raspberry Pi
-	// make a fullscreen "window"
 
 	// this code is based on the work of Ben O'Steen
 	// http://benosteen.wordpress.com/2012/04/27/using-opengl-es-2-0-on-the-raspberry-pi-without-x-windows/
@@ -149,35 +148,6 @@ int ogl_init_window(int x, int y)
 	uint32_t display_height;
 	int success;
 
-	// create an EGL window surface, passing context width/height
-	success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
-	if ( success < 0 ) {
-		Error("Could not get RPi display size\n");
-	}
-
-	dst_rect.x = 0;
-	dst_rect.y = 0;
-	dst_rect.width = display_width;
-	dst_rect.height = display_height;
-
-	src_rect.x = 0;
-	src_rect.y = 0;
-	src_rect.width = display_width << 16;
-	src_rect.height = display_height << 16;
-
-	dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
-	dispman_update = vc_dispmanx_update_start( 0 );
-
-	dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
-							0/*layer*/, &dst_rect, 0/*src*/,
-							&src_rect, DISPMANX_PROTECTION_NONE,
-							0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
-
-	nativewindow.element = dispman_element;
-	nativewindow.width = display_width;
-	nativewindow.height = display_height;
-	vc_dispmanx_update_submit_sync( dispman_update );
-
 	// TODO: very evil hack
 	sdl_video_flags=0;
 #endif // RPI
@@ -192,7 +162,12 @@ int ogl_init_window(int x, int y)
 
 	if (!SDL_SetVideoMode(x, y, GameArg.DbgBpp, sdl_video_flags))
 	{
+#ifdef RPI
+		con_printf(CON_URGENT, "Could not set %dx%dx%d opengl video mode: %s\n (Ignored for RPI)",
+			    x, y, GameArg.DbgBpp, SDL_GetError());
+#else
 		Error("Could not set %dx%dx%d opengl video mode: %s\n", x, y, GameArg.DbgBpp, SDL_GetError());
+#endif
 	}
 
 #ifdef OGLES
@@ -212,7 +187,7 @@ int ogl_init_window(int x, int y)
 			printf ("Display: %p, Window: %i ===\n", x11Display, x11Window);
 		}
 	}
-	
+
 #ifdef RPI
 	eglDisplay = eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY);
 #else
@@ -232,7 +207,53 @@ int ogl_init_window(int x, int y)
 	} else {
 		con_printf(CON_URGENT, "EGL: Choosed config\n", ver_maj, ver_min);
 	}
+
 #ifdef RPI
+
+	// create an EGL window surface, passing context width/height
+	success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+	if ( success < 0 ) {
+		con_printf(CON_URGENT, "Could not get RPi display size, assuming 640x480\n");
+		display_width=640;
+		display_height=480;
+	}
+
+	con_printf(CON_VERBOSE, "RPi: display size is %ux%u\n", display_width, display_height);
+
+	if ((uint32_t)x > display_width) {
+		con_printf(CON_URGENT, "RPi: Requested width %d exceeds display width %u",
+			x,display_width);
+		x=(int)display_width;
+	}
+	if ((uint32_t)y > display_height) {
+		con_printf(CON_URGENT, "RPi: Requested height %d exceeds display height %u",
+			y,display_height);
+		y=(int)display_height;
+	}
+
+	dst_rect.x = 0;
+	dst_rect.y = 0;
+	dst_rect.width = (uint32_t)x;
+	dst_rect.height =(uint32_t)y;
+
+	src_rect.x = 0;
+	src_rect.y = 0;
+	src_rect.width = ((uint32_t)x)<< 16;
+	src_rect.height =((uint32_t)y)<< 16;
+
+	dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+	dispman_update = vc_dispmanx_update_start( 0 );
+
+	dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
+							0/*layer*/, &dst_rect, 0/*src*/,
+							&src_rect, DISPMANX_PROTECTION_NONE,
+							0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
+
+	nativewindow.element = dispman_element;
+	nativewindow.width = display_width;
+	nativewindow.height = display_height;
+	vc_dispmanx_update_submit_sync( dispman_update );
+
 	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (EGLNativeWindowType)&nativewindow, winAttribs);
 #else
 	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)x11Window, winAttribs);
