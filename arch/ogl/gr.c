@@ -67,6 +67,16 @@
 
 #ifdef OGLES
 int sdl_video_flags = 0;
+
+#ifdef RPI
+static EGL_DISPMANX_WINDOW_T nativewindow;
+static DISPMANX_ELEMENT_HANDLE_T dispman_element;
+static DISPMANX_DISPLAY_HANDLE_T dispman_display;
+static uint32_t rpi_dispman_flags=0;
+#define RPI_DISPMAN_DISPLAY	0x1	/* we have opened the display */
+#define RPI_DISPMAN_ELEMENT	0x2	/* we have created the element */
+#endif
+
 #else
 int sdl_video_flags = SDL_OPENGL;
 #endif
@@ -137,9 +147,6 @@ int ogl_init_window(int x, int y)
 	// this code is based on the work of Ben O'Steen
 	// http://benosteen.wordpress.com/2012/04/27/using-opengl-es-2-0-on-the-raspberry-pi-without-x-windows/
 	// https://github.com/benosteen/opengles-book-samples/tree/master/Raspi
-	static EGL_DISPMANX_WINDOW_T nativewindow;
-	DISPMANX_ELEMENT_HANDLE_T dispman_element;
-	DISPMANX_DISPLAY_HANDLE_T dispman_display;
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
 	VC_RECT_T dst_rect;
 	VC_RECT_T src_rect;
@@ -147,9 +154,6 @@ int ogl_init_window(int x, int y)
 	uint32_t display_width;
 	uint32_t display_height;
 	int success;
-
-	// TODO: very evil hack
-	sdl_video_flags=0;
 #endif // RPI
 
 #endif // OGLES
@@ -209,7 +213,6 @@ int ogl_init_window(int x, int y)
 	}
 
 #ifdef RPI
-
 	// create an EGL window surface, passing context width/height
 	success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
 	if ( success < 0 ) {
@@ -221,33 +224,57 @@ int ogl_init_window(int x, int y)
 	con_printf(CON_VERBOSE, "RPi: display size is %ux%u\n", display_width, display_height);
 
 	if ((uint32_t)x > display_width) {
-		con_printf(CON_URGENT, "RPi: Requested width %d exceeds display width %u",
+		con_printf(CON_URGENT, "RPi: Requested width %d exceeds display width %u, scaling down!\n",
 			x,display_width);
 		x=(int)display_width;
 	}
 	if ((uint32_t)y > display_height) {
-		con_printf(CON_URGENT, "RPi: Requested height %d exceeds display height %u",
+		con_printf(CON_URGENT, "RPi: Requested height %d exceeds display height %u, scaling down!\n",
 			y,display_height);
 		y=(int)display_height;
 	}
 
-	dst_rect.x = 0;
-	dst_rect.y = 0;
-	dst_rect.width = (uint32_t)x;
-	dst_rect.height =(uint32_t)y;
+	if (sdl_video_flags & SDL_FULLSCREEN) {
+		/* scale to the full display size... */
+		dst_rect.x = 0;
+		dst_rect.y = 0;
+		dst_rect.width = display_width;
+		dst_rect.height= display_height;
+	} else {
+		/* TODO: we could query the position of the X11 window here
+		   and try to place the ovelray exactly above that...,
+		   we would have to track window movements, though ... */
+		dst_rect.x = 0;
+		dst_rect.y = 0;
+		dst_rect.width = ((uint32_t)x > display_width) ?display_width :(uint32_t)x;
+		dst_rect.height= ((uint32_t)y > display_height)?display_height:(uint32_t)y;
+	}
+	
 
 	src_rect.x = 0;
 	src_rect.y = 0;
 	src_rect.width = ((uint32_t)x)<< 16;
 	src_rect.height =((uint32_t)y)<< 16;
 
-	dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+	if (!(rpi_dispman_flags & RPI_DISPMAN_DISPLAY)) {
+		dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+		rpi_dispman_flags |= RPI_DISPMAN_DISPLAY;
+	}
 	dispman_update = vc_dispmanx_update_start( 0 );
 
+	/* destroy and recreate the element here
+	   TODO: look for a reliable way to change it */
+	if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
+		if (vc_dispmanx_element_remove( dispman_update, dispman_element)) {
+			 con_printf(CON_URGENT, "RPi: failed to remove dispmanx element!\n");
+		}
+		rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
+	}
 	dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
 							0/*layer*/, &dst_rect, 0/*src*/,
 							&src_rect, DISPMANX_PROTECTION_NONE,
 							0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
+	rpi_dispman_flags |= RPI_DISPMAN_ELEMENT;
 
 	nativewindow.element = dispman_element;
 	nativewindow.width = display_width;
@@ -308,6 +335,10 @@ int gr_toggle_fullscreen(void)
 		{
 			Error("Could not set %dx%dx%d opengl video mode: %s\n", SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, SDL_GetError());
 		}
+#ifdef RPI
+		/* TODO: change RPI element ? */
+#endif
+
 	}
 
 	if (gl_initialized) // update viewing values for menus
@@ -640,6 +671,27 @@ void gr_close()
 #ifdef _WIN32
 	if (ogl_rt_loaded)
 		OpenGL_LoadLibrary(false);
+#endif
+
+#ifdef OGLES
+	/* TODO: GLES cleanup? */
+#ifdef RPI
+	 con_printf(CON_VERBOSE, "RPi: cleanuing up\n");
+	if (rpi_dispman_flags & RPI_DISPMAN_DISPLAY) {
+		if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
+			DISPMANX_UPDATE_HANDLE_T dispman_update;
+			dispman_update = vc_dispmanx_update_start( 0 );
+			if (vc_dispmanx_element_remove( dispman_update, dispman_element)) {
+				 con_printf(CON_URGENT, "RPi: failed to remove dispmanx element!\n");
+			}
+			rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
+			vc_dispmanx_update_submit_sync( dispman_update );
+		}
+
+		vc_dispmanx_display_close(dispman_display);
+		rpi_dispman_flags &= ~RPI_DISPMAN_DISPLAY;
+	}
+#endif
 #endif
 }
 
