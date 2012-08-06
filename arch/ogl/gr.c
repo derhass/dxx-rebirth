@@ -450,12 +450,7 @@ int gr_list_modes( u_int32_t gsmodes[] )
 	SDL_Rect** modes;
 	int i = 0, modesnum = 0;
 #ifdef OGLES
-#ifdef RPI
-	// TODO: what am I doing here???
-	int sdl_check_flags = 0; //SDL_FULLSCREEN; // always use Fullscreen as lead.
-#else
 	int sdl_check_flags = SDL_FULLSCREEN; // always use Fullscreen as lead.
-#endif
 #else
 	int sdl_check_flags = SDL_OPENGL | SDL_FULLSCREEN; // always use Fullscreen as lead.
 #endif
