@@ -154,7 +154,9 @@ int ogl_init_window(int x, int y)
 	DISPMANX_UPDATE_HANDLE_T dispman_update;
 	VC_RECT_T dst_rect;
 	VC_RECT_T src_rect;
+	VC_DISPMANX_ALPHA_T alpha_descriptor;
 
+	uint32_t rpi_display_device=DISPMANX_ID_MAIN_LCD;
 	uint32_t display_width;
 	uint32_t display_height;
 	int success;
@@ -277,7 +279,7 @@ int ogl_init_window(int x, int y)
 	src_rect.height =((uint32_t)y)<< 16;
 
 	if (!(rpi_dispman_flags & RPI_DISPMAN_DISPLAY)) {
-		dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+		dispman_display = vc_dispmanx_display_open(rpi_display_device);
 		rpi_dispman_flags |= RPI_DISPMAN_DISPLAY;
 	}
 	dispman_update = vc_dispmanx_update_start( 0 );
@@ -290,10 +292,17 @@ int ogl_init_window(int x, int y)
 		}
 		rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
 	}
+
+	/* we do not want our overlay to be blended against the background */
+	alpha_descriptor.flags=DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS;
+	alpha_descriptor.opacity=0xffffffff;
+	alpha_descriptor.mask=NULL;
+
 	dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
-							0/*layer*/, &dst_rect, 0/*src*/,
+							0 /*layer*/, &dst_rect, 0 /*src*/,
 							&src_rect, DISPMANX_PROTECTION_NONE,
-							0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
+							&alpha_descriptor, NULL /*clamp*/,
+							VC_IMAGE_ROT0 /*transform*/);
 	rpi_dispman_flags |= RPI_DISPMAN_ELEMENT;
 
 	nativewindow.element = dispman_element;
