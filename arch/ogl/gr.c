@@ -83,6 +83,7 @@ int sdl_video_flags = SDL_OPENGL;
 int gr_installed = 0;
 int gl_initialized=0;
 int linedotscale=1; // scalar of glLinewidth and glPointSize - only calculated once when resolution changes
+int sdl_no_modeswitch=0;
 
 #ifdef OGLES
 EGLDisplay eglDisplay;
@@ -119,6 +120,9 @@ void ogl_swap_buffers_internal(void)
 
 int ogl_init_window(int x, int y)
 {
+	int use_x,use_y,use_bpp;
+	Uint32 use_flags;
+
 #ifdef OGLES
 	SDL_SysWMinfo info;
 	Window    x11Window = 0;
@@ -164,7 +168,23 @@ int ogl_init_window(int x, int y)
 	SDL_WM_SetCaption(DESCENT_VERSION, "Descent");
 	SDL_WM_SetIcon( SDL_LoadBMP( "d1x-rebirth.bmp" ), NULL );
 
-	if (!SDL_SetVideoMode(x, y, GameArg.DbgBpp, sdl_video_flags))
+	use_x=x;
+	use_y=y;
+	use_bpp=GameArg.DbgBpp;
+	use_flags=sdl_video_flags;
+	if (sdl_no_modeswitch) {
+		const SDL_VideoInfo *vinfo=SDL_GetVideoInfo();
+		if (vinfo) {	
+			use_x=vinfo->current_w;
+			use_y=vinfo->current_h;
+			use_bpp=vinfo->vfmt->BitsPerPixel;
+			use_flags=SDL_SWSURFACE | SDL_ANYFORMAT;
+		} else {
+			con_printf(CON_URGENT, "Could not query video info\n");
+		}
+	}
+
+	if (!SDL_SetVideoMode(use_x, use_y, use_bpp, use_flags))
 	{
 #ifdef RPI
 		con_printf(CON_URGENT, "Could not set %dx%dx%d opengl video mode: %s\n (Ignored for RPI)",
@@ -326,19 +346,20 @@ int gr_toggle_fullscreen(void)
 
 	if (gl_initialized)
 	{
-		if (!SDL_VideoModeOK(SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, sdl_video_flags))
-		{
-			con_printf(CON_URGENT,"Cannot set %ix%i. Fallback to 640x480\n",SM_W(Game_screen_mode), SM_H(Game_screen_mode));
-			Game_screen_mode=SM(640,480);
-		}
-		if (!SDL_SetVideoMode(SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, sdl_video_flags))
-		{
-			Error("Could not set %dx%dx%d opengl video mode: %s\n", SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, SDL_GetError());
+		if (sdl_no_modeswitch == 0) {
+			if (!SDL_VideoModeOK(SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, sdl_video_flags))
+			{
+				con_printf(CON_URGENT,"Cannot set %ix%i. Fallback to 640x480\n",SM_W(Game_screen_mode), SM_H(Game_screen_mode));
+				Game_screen_mode=SM(640,480);
+			}
+			if (!SDL_SetVideoMode(SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, sdl_video_flags))
+			{
+				Error("Could not set %dx%dx%d opengl video mode: %s\n", SM_W(Game_screen_mode), SM_H(Game_screen_mode), GameArg.DbgBpp, SDL_GetError());
+			}
 		}
 #ifdef RPI
 		/* TODO: change RPI element ? */
 #endif
-
 	}
 
 	if (gl_initialized) // update viewing values for menus
@@ -455,6 +476,11 @@ int gr_list_modes( u_int32_t gsmodes[] )
 	int sdl_check_flags = SDL_OPENGL | SDL_FULLSCREEN; // always use Fullscreen as lead.
 #endif
 
+	if (sdl_no_modeswitch) {
+		/* TODO: we could use the tvservice to list resolutions on the RPi */
+		return 0;
+	}
+
 	modes = SDL_ListModes(NULL, sdl_check_flags);
 
 	if (modes == (SDL_Rect**)0) // check if we get any modes - if not, return 0
@@ -488,7 +514,12 @@ int gr_check_mode(u_int32_t mode)
 	w=SM_W(mode);
 	h=SM_H(mode);
 
-	return SDL_VideoModeOK(w, h, GameArg.DbgBpp, sdl_video_flags);
+	if (sdl_no_modeswitch == 0) {
+		return SDL_VideoModeOK(w, h, GameArg.DbgBpp, sdl_video_flags);
+	} else {
+		// just tell the caller that any mode is valid...
+		return 32;
+	}
 }
 
 int gr_set_mode(u_int32_t mode)
@@ -597,6 +628,11 @@ void gr_set_attributes(void)
 
 int gr_init(int mode)
 {
+#ifdef RPI
+	char sdl_driver[32];
+	char *sdl_driver_ret;
+#endif
+
 	int retcode;
 
 	// Only do this function once!
@@ -607,6 +643,15 @@ int gr_init(int mode)
 	// Initialize the broadcom host library
 	// we have to call this before we can create an OpenGL ES context
 	bcm_host_init();
+
+	// Check if we are running with SDL directfb driver ...
+	sdl_driver_ret=SDL_VideoDriverName(sdl_driver,32);
+	if (sdl_driver_ret) {
+		if (strcmp(sdl_driver_ret,"x11")) {
+			con_printf(CON_URGENT,"RPi: activating hack for console driver\n");
+			sdl_no_modeswitch=1;
+		}
+	}
 #endif
 
 #ifdef _WIN32
