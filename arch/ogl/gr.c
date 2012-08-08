@@ -86,10 +86,10 @@ int linedotscale=1; // scalar of glLinewidth and glPointSize - only calculated o
 int sdl_no_modeswitch=0;
 
 #ifdef OGLES
-EGLDisplay eglDisplay;
+EGLDisplay eglDisplay=EGL_NO_DISPLAY;
 EGLConfig eglConfig;
-EGLSurface eglSurface;
-EGLContext eglContext;
+EGLSurface eglSurface=EGL_NO_SURFACE;
+EGLContext eglContext=EGL_NO_CONTEXT;
 
 bool TestEGLError(char* pszLocation)
 {
@@ -132,6 +132,20 @@ void ogl_swap_buffers_internal(void)
 #define ELEMENT_CHANGE_MASK_RESOURCE  (1<<4)
 #define ELEMENT_CHANGE_TRANSFORM      (1<<5)
 
+void rpi_destroy_element(void)
+{
+	if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
+		DISPMANX_UPDATE_HANDLE_T dispman_update;
+		con_printf(CON_DEBUG, "RPi: destroying display manager element\n");
+		dispman_update = vc_dispmanx_update_start( 0 );
+		if (vc_dispmanx_element_remove( dispman_update, dispman_element)) {
+			 con_printf(CON_URGENT, "RPi: failed to remove dispmanx element!\n");
+		}
+		rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
+		vc_dispmanx_update_submit_sync( dispman_update );
+	}
+}
+
 int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 {
 	// this code is based on the work of Ben O'Steen
@@ -147,14 +161,12 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 	uint32_t display_height;
 	int success;
 
-	success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+	success = graphics_get_display_size(rpi_display_device, &display_width, &display_height);
 	if ( success < 0 ) {
 		con_printf(CON_URGENT, "Could not get RPi display size, assuming 640x480\n");
 		display_width=640;
 		display_height=480;
 	}
-
-	con_printf(CON_VERBOSE, "RPi: display size is %ux%u\n", display_width, display_height);
 
 	if ((uint32_t)x > display_width) {
 		con_printf(CON_URGENT, "RPi: Requested width %d exceeds display width %u, scaling down!\n",
@@ -167,6 +179,7 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 		y=(int)display_height;
 	}
 
+	con_printf(CON_DEBUG, "RPi: display resolution %ux%u, game resolution: %dx%d (%s)\n", display_width, display_height, x, y, (video_flags & SDL_FULLSCREEN)?"fullscreen":"windowed");
 	if (video_flags & SDL_FULLSCREEN) {
 		/* scale to the full display size... */
 		dst_rect.x = 0;
@@ -179,8 +192,8 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 		   we would have to track window movements, though ... */
 		dst_rect.x = 0;
 		dst_rect.y = 0;
-		dst_rect.width = ((uint32_t)x > display_width) ?display_width :(uint32_t)x;
-		dst_rect.height= ((uint32_t)y > display_height)?display_height:(uint32_t)y;
+		dst_rect.width = (uint32_t)x;
+		dst_rect.height= (uint32_t)y;
 	}
 
 	src_rect.x = 0;
@@ -195,6 +208,7 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 
 	// open display, if we do not already have one ...
 	if (!(rpi_dispman_flags & RPI_DISPMAN_DISPLAY)) {
+		con_printf(CON_DEBUG, "RPi: opening display: %u\n",rpi_display_device);
 		dispman_display = vc_dispmanx_display_open(rpi_display_device);
 		rpi_dispman_flags |= RPI_DISPMAN_DISPLAY;
 	}
@@ -202,12 +216,7 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 	if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
 		if (!update) {
 			// if the element already exists, and we cannot update it, so recreate it
-			dispman_update = vc_dispmanx_update_start( 0 );
-			if (vc_dispmanx_element_remove( dispman_update, dispman_element)) {
-				 con_printf(CON_URGENT, "RPi: failed to remove dispmanx element!\n");
-			}
-			vc_dispmanx_update_submit_sync( dispman_update );
-			rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
+			rpi_destroy_element();
 		}
 	} else {
 		// if the element does not exist, we cannot do an update
@@ -217,6 +226,7 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 	dispman_update = vc_dispmanx_update_start( 0 );
 
 	if (update) {
+		con_printf(CON_DEBUG, "RPi: updating display manager element\n");
 		vc_dispmanx_element_change_attributes ( dispman_update, nativewindow.element,
 							ELEMENT_CHANGE_DEST_RECT | ELEMENT_CHANGE_SRC_RECT,
 							0 /*layer*/, 0 /*opacity*/,
@@ -224,6 +234,7 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 							0 /*mask*/, VC_IMAGE_ROT0 /*transform*/);
 	} else {
 		// create a new element
+		con_printf(CON_DEBUG, "RPi: creating display manager element\n");
 		dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
 								0 /*layer*/, &dst_rect, 0 /*src*/,
 								&src_rect, DISPMANX_PROTECTION_NONE,
@@ -241,6 +252,33 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 }
 
 #endif // RPI
+
+#ifdef OGLES
+void ogles_destroy(void)
+{
+	if( eglDisplay != EGL_NO_DISPLAY ) {
+		eglMakeCurrent(eglDisplay, NULL, NULL, EGL_NO_CONTEXT);
+	}
+
+	if (eglContext != EGL_NO_CONTEXT) {
+		con_printf(CON_DEBUG, "EGL: destroyig context\n");
+		eglDestroyContext(eglDisplay, eglContext);
+		eglContext = EGL_NO_CONTEXT;
+	}
+
+	if (eglSurface != EGL_NO_SURFACE) {
+		con_printf(CON_DEBUG, "EGL: destroyig surface\n");
+		eglDestroySurface(eglDisplay, eglSurface);
+		eglSurface = EGL_NO_SURFACE;
+	}
+
+	if (eglDisplay != EGL_NO_DISPLAY) {
+		con_printf(CON_DEBUG, "EGL: terminating\n");
+		eglTerminate(eglDisplay);
+		eglDisplay = EGL_NO_DISPLAY;
+	}
+}
+#endif
 
 int ogl_init_window(int x, int y)
 {
@@ -304,12 +342,11 @@ int ogl_init_window(int x, int y)
 	}
 
 #ifdef OGLES
-	if( eglSurface || eglContext || eglDisplay )
-	{
-		eglMakeCurrent(eglDisplay, NULL, NULL, EGL_NO_CONTEXT);
-		eglDestroyContext(eglDisplay, eglContext);
-		eglDestroySurface(eglDisplay, eglSurface);
-	}
+#ifndef RPI
+	// NOTE: on the RPi, the EGL stuff is not connected to the X11 window,
+	//       so there is no need to destroy and recreate this
+	ogles_destroy();
+#endif
 
 	SDL_VERSION(&info.version);
 	
@@ -317,57 +354,67 @@ int ogl_init_window(int x, int y)
 		if (info.subsystem == SDL_SYSWM_X11) {
 			x11Display = info.info.x11.display;
 			x11Window = info.info.x11.window;
-			printf ("Display: %p, Window: %i ===\n", x11Display, x11Window);
+			con_printf (CON_DEBUG, "Display: %p, Window: %i ===\n", (void*)x11Display, (int)x11Window);
 		}
 	}
 
-#ifdef RPI
-	eglDisplay = eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY);
-#else
-	eglDisplay = eglGetDisplay((EGLNativeDisplayType)x11Display);
-#endif
 	if (eglDisplay == EGL_NO_DISPLAY) {
-		con_printf(CON_URGENT, "EGL: Error querying EGL Display\n");
-	}
-	if (!eglInitialize(eglDisplay, &ver_maj, &ver_min)) {
-		con_printf(CON_URGENT, "EGL: Error initializing EGL\n");
-	} else {
-		con_printf(CON_URGENT, "EGL: Initialized, version: major %i minor %i\n", ver_maj, ver_min);
-	}
-	
-	if (!eglChooseConfig(eglDisplay, configAttribs, &eglConfig, 1, &iConfigs) || (iConfigs != 1)) {
-		con_printf(CON_URGENT, "EGL: Error choosing config\n");
-	} else {
-		con_printf(CON_URGENT, "EGL: Choosed config\n", ver_maj, ver_min);
+#ifdef RPI
+		eglDisplay = eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY);
+#else
+		eglDisplay = eglGetDisplay((EGLNativeDisplayType)x11Display);
+#endif
+		if (eglDisplay == EGL_NO_DISPLAY) {
+			con_printf(CON_URGENT, "EGL: Error querying EGL Display\n");
+		}
+
+		if (!eglInitialize(eglDisplay, &ver_maj, &ver_min)) {
+			con_printf(CON_URGENT, "EGL: Error initializing EGL\n");
+		} else {
+			con_printf(CON_DEBUG, "EGL: Initialized, version: major %i minor %i\n", ver_maj, ver_min);
+		}
 	}
 
+	
 #ifdef RPI
 	if (rpi_setup_element(x,y,sdl_video_flags,1)) {
 		Error("RPi: Could not set up a %dx%d element\n", x, y);
 	}
-
-	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (EGLNativeWindowType)&nativewindow, winAttribs);
-#else
-	eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)x11Window, winAttribs);
 #endif
-	if (!TestEGLError("eglCreateWindowSurface")) {
-		con_printf(CON_URGENT, "EGL: Error creating window surface\n");
-	} else {
-		con_printf(CON_URGENT, "EGL: Created window surface\n");
+
+	if (eglSurface == EGL_NO_SURFACE) {
+		if (!eglChooseConfig(eglDisplay, configAttribs, &eglConfig, 1, &iConfigs) || (iConfigs != 1)) {
+			con_printf(CON_URGENT, "EGL: Error choosing config\n");
+		} else {
+			con_printf(CON_DEBUG, "EGL: config chosen\n");
+		}
+
+#ifdef RPI
+		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (EGLNativeWindowType)&nativewindow, winAttribs);
+#else
+		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)x11Window, winAttribs);
+#endif
+		if ((!TestEGLError("eglCreateWindowSurface")) || eglSurface == EGL_NO_SURFACE) {
+			con_printf(CON_URGENT, "EGL: Error creating window surface\n");
+		} else {
+			con_printf(CON_DEBUG, "EGL: Created window surface\n");
+		}
 	}
 	
-	eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs);
-	if (!TestEGLError("eglCreateContext")) {
-		con_printf(CON_URGENT, "EGL: Error creating context\n");
-	} else {
-		con_printf(CON_URGENT, "EGL: Created context\n");
+	if (eglContext == EGL_NO_CONTEXT) {
+		eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs);
+		if ((!TestEGLError("eglCreateContext")) || eglContext == EGL_NO_CONTEXT) {
+			con_printf(CON_URGENT, "EGL: Error creating context\n");
+		} else {
+			con_printf(CON_DEBUG, "EGL: Created context\n");
+		}
 	}
 	
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	if (!TestEGLError("eglMakeCurrent")) {
 		con_printf(CON_URGENT, "EGL: Error making current\n");
 	} else {
-		con_printf(CON_URGENT, "EGL: Created current\n");
+		con_printf(CON_DEBUG, "EGL: made context current\n");
 	}
 #endif
 
@@ -761,20 +808,12 @@ void gr_close()
 #endif
 
 #ifdef OGLES
-	/* TODO: GLES cleanup? */
+	ogles_destroy();
 #ifdef RPI
-	 con_printf(CON_VERBOSE, "RPi: cleanuing up\n");
+	con_printf(CON_DEBUG, "RPi: cleanuing up\n");
 	if (rpi_dispman_flags & RPI_DISPMAN_DISPLAY) {
-		if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
-			DISPMANX_UPDATE_HANDLE_T dispman_update;
-			dispman_update = vc_dispmanx_update_start( 0 );
-			if (vc_dispmanx_element_remove( dispman_update, dispman_element)) {
-				 con_printf(CON_URGENT, "RPi: failed to remove dispmanx element!\n");
-			}
-			rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
-			vc_dispmanx_update_submit_sync( dispman_update );
-		}
-
+		rpi_destroy_element();
+		con_printf(CON_DEBUG, "RPi: closing display\n");
 		vc_dispmanx_display_close(dispman_display);
 		rpi_dispman_flags &= ~RPI_DISPMAN_DISPLAY;
 	}
