@@ -475,7 +475,7 @@ Help(PROGRAM_NAME + ', SConstruct file help:' +
 	'use_udp=[0/1]'       enable UDP support [default: 1]
 	'use_tracker=[0/1]'   enable Tracker support (requires udp) [default :1]
 	'verbosebuild=[0/1]'  print out all compiler/linker messages during building [default: 0]
-	'raspberrypi=[0/1]'   build for Raspberry Pi (automatically sets opengles=2) [default: 0]
+	'raspberrypi=[0/1]'   build for Raspberry Pi (automatically sets opengles and opengles_lib) [default: 0]
 	'rpi_vc_path=[DIR]'   use [DIR] to look for VideoCore libraries/header files (RPi only)
 		
 	Default values:
