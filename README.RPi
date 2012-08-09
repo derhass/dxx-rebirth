@@ -1,0 +1,61 @@
+DXX-Rebirth for the Raspberry Pi
+
+BUILDING:
+=========
+You will need the same requirements (libsdl, libphysfs, ...) as for normal
+builds. To build directly on the device, just run:
+
+scons raspberrypi=1 [... other options...]
+
+This assumes that the development files (libs/headers) for the VideoCore APIs 
+are located in /opt/vc. You can use rpi_vc_path to specify another location.
+There are no options to directly support cross-compiling, yet.
+
+RUNNING:
+========
+The game should run with X11 or directly on the console (libsdl with fbdev/
+directfb driver). 
+
+NOTE: *** PLEASE USE THE 128/128MB MEMORY SPLIT *** 
+
+The game might completely freeze or diplay messed up graphics in
+out-of-(GPU)-memory situations. If you want to run it with the 192/64MB memory
+split, you might be able to do so by setting the texture filter to "NONE" in
+the graphics options. (This disables mipmapping and halfes the memory
+requirements for the textures. Note that the "BILINEAR" filter still uses
+mipmapping).
+
+RUNNING ON X11:
+===============
+Recommendation is to use fullscreen mode. However, you can run in "windowed"
+mode, too. The game will open an X11 window in that case, and the actual game
+output will be an overlay of the same size, but not at the same position, and
+always on top (and completely inaccessible by X11).
+
+RUNNING ON THE CONSOLE:
+=======================
+libsdl supports running directly on the Linux console. While the SDL Video
+mode is technically required on the RPi, we still have to use it to get all
+the input events we need. libsdl seems to have problems on the RPi, I always
+got a crash in libsdl when trying to change the resolution. To avoid such
+crashes, the code will try to detect if it is running on the console and
+activate a hack to prevent resolution switches. Note that the in-game
+framebuffer resolution can still be changed, the RPi will just scale the
+output to the initial resolution (in "fullscreen" mode). "Windowed"
+mode will just result in unscaled output.
+
+NOTE: You might need root privileges to use the libsdl fbdev/directfb
+      drivers.
+
+BUGS, SUGGESTIONS AND FEEDBACK:
+===============================
+
+The RPi patch was written by:
+	Marcel Heinz <derhass@arcor.de>
+
+Send bugs reports, suggestions and other feedback regarding the operation
+on the RPi to me via email, or post to the official dxx-rebirth forum at:
+	http://www.dxx-rebirth.com/frm/index.php
+
+						-- derhass, 2012-08-09
+
