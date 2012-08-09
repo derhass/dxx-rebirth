@@ -70,11 +70,8 @@ int sdl_video_flags = 0;
 
 #ifdef RPI
 static EGL_DISPMANX_WINDOW_T nativewindow;
-static DISPMANX_ELEMENT_HANDLE_T dispman_element;
-static DISPMANX_DISPLAY_HANDLE_T dispman_display;
-static uint32_t rpi_dispman_flags=0;
-#define RPI_DISPMAN_DISPLAY	0x1	/* we have opened the display */
-#define RPI_DISPMAN_ELEMENT	0x2	/* we have created the element */
+static DISPMANX_ELEMENT_HANDLE_T dispman_element=DISPMANX_NO_HANDLE;
+static DISPMANX_DISPLAY_HANDLE_T dispman_display=DISPMANX_NO_HANDLE;
 #endif
 
 #else
@@ -134,15 +131,15 @@ void ogl_swap_buffers_internal(void)
 
 void rpi_destroy_element(void)
 {
-	if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
+	if (dispman_element != DISPMANX_NO_HANDLE) {
 		DISPMANX_UPDATE_HANDLE_T dispman_update;
 		con_printf(CON_DEBUG, "RPi: destroying display manager element\n");
 		dispman_update = vc_dispmanx_update_start( 0 );
 		if (vc_dispmanx_element_remove( dispman_update, dispman_element)) {
 			 con_printf(CON_URGENT, "RPi: failed to remove dispmanx element!\n");
 		}
-		rpi_dispman_flags &= ~RPI_DISPMAN_ELEMENT;
 		vc_dispmanx_update_submit_sync( dispman_update );
+		dispman_element = DISPMANX_NO_HANDLE;
 	}
 }
 
@@ -207,13 +204,15 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 	alpha_descriptor.mask=0;
 
 	// open display, if we do not already have one ...
-	if (!(rpi_dispman_flags & RPI_DISPMAN_DISPLAY)) {
+	if (dispman_display == DISPMANX_NO_HANDLE) {
 		con_printf(CON_DEBUG, "RPi: opening display: %u\n",rpi_display_device);
 		dispman_display = vc_dispmanx_display_open(rpi_display_device);
-		rpi_dispman_flags |= RPI_DISPMAN_DISPLAY;
+		if (dispman_display == DISPMANX_NO_HANDLE) {
+			con_printf(CON_URGENT,"RPi: failed to open display: %u\n",rpi_display_device);
+		}
 	}
 
-	if (rpi_dispman_flags & RPI_DISPMAN_ELEMENT) {
+	if (dispman_element != DISPMANX_NO_HANDLE) {
 		if (!update) {
 			// if the element already exists, and we cannot update it, so recreate it
 			rpi_destroy_element();
@@ -240,8 +239,9 @@ int rpi_setup_element(int x, int y, Uint32 video_flags, int update)
 								&src_rect, DISPMANX_PROTECTION_NONE,
 								&alpha_descriptor, NULL /*clamp*/,
 								VC_IMAGE_ROT0 /*transform*/);
-		rpi_dispman_flags |= RPI_DISPMAN_ELEMENT;
-
+		if (dispman_element == DISPMANX_NO_HANDLE) {
+			con_printf(CON_URGENT,"RPi: failed to creat display manager elemenr\n");
+		}
 		nativewindow.element = dispman_element;
 	}
 	nativewindow.width = display_width;
@@ -811,11 +811,11 @@ void gr_close()
 	ogles_destroy();
 #ifdef RPI
 	con_printf(CON_DEBUG, "RPi: cleanuing up\n");
-	if (rpi_dispman_flags & RPI_DISPMAN_DISPLAY) {
+	if (dispman_display != DISPMANX_NO_HANDLE) {
 		rpi_destroy_element();
 		con_printf(CON_DEBUG, "RPi: closing display\n");
 		vc_dispmanx_display_close(dispman_display);
-		rpi_dispman_flags &= ~RPI_DISPMAN_DISPLAY;
+		dispman_display = DISPMANX_NO_HANDLE;
 	}
 #endif
 #endif
