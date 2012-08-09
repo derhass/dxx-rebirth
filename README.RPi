@@ -2,8 +2,12 @@ DXX-Rebirth for the Raspberry Pi
 
 BUILDING:
 =========
-You will need the same requirements (libsdl, libphysfs, ...) as for normal
-builds. To build directly on the device, just run:
+You will need the same requirements (libsdl, libphysfs, scons ...) as for
+normal builds. Most linux distributions should contain all the required
+packages, debain/raspbian do so for sure. Using a distribution with hardfp
+float API is recommended for higher performance.
+
+To build directly on the device, just run:
 
 scons raspberrypi=1 [... other options...]
 
@@ -30,19 +34,21 @@ RUNNING ON X11:
 Recommendation is to use fullscreen mode. However, you can run in "windowed"
 mode, too. The game will open an X11 window in that case, and the actual game
 output will be an overlay of the same size, but not at the same position, and
-always on top (and completely inaccessible by X11).
+always on top (and completely out of control of the X Server). Game input is
+still handled via the X11 window, so make sure it has the focus.
 
 RUNNING ON THE CONSOLE:
 =======================
-libsdl supports running directly on the Linux console. While the SDL Video
-mode is technically required on the RPi, we still have to use it to get all
-the input events we need. libsdl seems to have problems on the RPi, I always
-got a crash in libsdl when trying to change the resolution. To avoid such
-crashes, the code will try to detect if it is running on the console and
-activate a hack to prevent resolution switches. Note that the in-game
-framebuffer resolution can still be changed, the RPi will just scale the
-output to the initial resolution (in "fullscreen" mode). "Windowed"
-mode will just result in unscaled output.
+libsdl supports running directly on the Linux console. While the SDL Video mode
+is technically not required on the RPi, we still have to use it to get all the
+input events we need. libsdl seems to have problems on the RPi, I always get a
+crash in libsdl when trying to change the resolution. To avoid such crashes,
+the code will try to detect if it is running on the console and activate a hack
+to prevent resolution switches. Note that the in-game framebuffer resolution
+can still be changed, the RPi will just scale the output to the initial
+resolution (in "fullscreen" mode). "Windowed" mode will just result in unscaled
+output. As libsdl creates a black screen, you will not be able to have the
+"Window" on top of the linux console output :(
 
 NOTE: You might need root privileges to use the libsdl fbdev/directfb
       drivers.
