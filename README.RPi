@@ -3,10 +3,11 @@ DXX-Rebirth for the Raspberry Pi
 BUILDING:
 =========
 Make sure you have installed (the development packages of) all of the required
-libraries (libsdl, libphysfs, ...). For buildiny, you will also need scons (and
+libraries (libsdl, libphysfs, ...). For building, you will also need scons (and
 for that, python).  Most linux distributions should contain all the required
 packages, debain/raspbian do so for sure. Using a distribution with hardfp ABI
-is recommended for optimal performance.
+is recommended for optimal performance. I developed/tested this on a raspbian
+wheezy. 
 
 To build directly on the device, just run:
 
