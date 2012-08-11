@@ -443,6 +443,7 @@ if (raspberrypi == 1):
 	env.Append(CPPDEFINES = ['RPI'])
 	env.Append(CPPPATH = [rpi_vc_path+'/include', rpi_vc_path+'/include/interface/vcos/pthreads'])
 	lflags += ' -L'+rpi_vc_path+'/lib'
+	libs += ['bcm_host']
 
 print '\n'
 
