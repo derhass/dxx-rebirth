@@ -101,6 +101,9 @@ extern int Game_suspended;          // if non-zero, nothing moves but player
 
 
 // from game.c
+#ifdef TIMEDEMO
+extern void timedemo_setup(int size, const char *filename);
+#endif
 void init_game(void);
 void game(void);
 void close_game(void);

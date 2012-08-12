@@ -99,6 +99,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "editor/editor.h"
 #endif
 
+#ifdef TIMEDEMO
+#include "physfsx.h"
+#endif
 
 #ifndef NDEBUG
 int	Mark_count = 0;                 // number of debugging marks set
@@ -143,6 +146,93 @@ extern int ReadControls(d_event *event);		// located in gamecntl.c
 
 // Cheats
 game_cheats cheats;
+
+#ifdef TIMEDEMO
+typedef struct {
+	fix64 *data;
+	int size;
+	int pos;
+	//FILE *f;
+	PHYSFS_file *f;
+	fix64 min;
+	fix64 max;
+	fix64 sum;
+	fix64 cnt;
+} frametimeBuffer;
+
+frametimeBuffer timedemoBuffer={NULL,0,0,NULL};
+
+void timedemo_flush()
+{
+	if ((timedemoBuffer.f != NULL) && (timedemoBuffer.data != NULL) && (timedemoBuffer.pos > 0)) {
+		// try to be as fast as possible: hust dump
+		// the binary data to disk
+		con_printf(CON_URGENT,"TIMEDEMO: flushing %d frames\n",timedemoBuffer.pos);
+		//fwrite(timedemoBuffer.data, sizeof(fix64), timedemoBuffer.pos, timedemoBuffer.f);
+		PHYSFS_write(timedemoBuffer.f, timedemoBuffer.data, sizeof(fix64), timedemoBuffer.pos);
+	}	
+	timedemoBuffer.pos=0;
+}
+
+// set size to 0 to disable time
+void timedemo_setup(int size, const char *filename)
+{
+	if (size == timedemoBuffer.size)
+		return;
+
+	timedemo_flush();
+
+	if (timedemoBuffer.size > 0) {
+		con_printf(CON_URGENT,"TIMEDEMO: %lu frames, avg: %.1fms, min: %.1fms, max: %.1fms\n",
+				(unsigned long)timedemoBuffer.cnt,
+				((float)timedemoBuffer.sum/65.5360f)/(float)timedemoBuffer.cnt,
+				(float)timedemoBuffer.min/65.5360f,				
+				(float)timedemoBuffer.max/65.5360f);			
+	}
+
+	timedemoBuffer.min=(fix64)1000000000;
+	timedemoBuffer.max=(fix64)0;
+	timedemoBuffer.sum=(fix64)0;
+	timedemoBuffer.cnt=(fix64)0;
+
+	if (timedemoBuffer.data) {
+		d_free(timedemoBuffer.data);
+	}
+	if (timedemoBuffer.f != NULL) {
+		con_printf(CON_URGENT,"TIMEDEMO: closing\n");
+		//fclose(timedemoBuffer.f);
+		PHYSFS_close(timedemoBuffer.f);
+		timedemoBuffer.f=NULL;
+	}
+
+	if (size > 0) {
+		con_printf(CON_URGENT,"TIMEDEMO: %d %s\n",size,filename);
+		MALLOC(timedemoBuffer.data,fix64,size);
+		//timedemoBuffer.f=fopen(filename,"wb");
+		timedemoBuffer.f = PHYSFS_openWrite(filename);
+	}
+	timedemoBuffer.size=size;
+	timedemoBuffer.pos=0;
+}
+
+void timedemo_addframe()
+{
+	if (timedemoBuffer.size > 0) {
+		timedemoBuffer.data[timedemoBuffer.pos++]=FrameTime;
+		timedemoBuffer.sum += FrameTime;
+		timedemoBuffer.cnt++;
+		if (FrameTime < timedemoBuffer.min)
+			if (FrameTime > F1_0/10000) 
+				timedemoBuffer.min = FrameTime;
+		if (FrameTime > timedemoBuffer.max)
+			timedemoBuffer.max = FrameTime;
+		if (timedemoBuffer.pos >= timedemoBuffer.size) {
+			timedemo_flush();
+		}
+	}
+}
+
+#endif
 
 //	==============================================================================================
 
@@ -386,6 +476,11 @@ void calc_frame_time()
 	timer_update();
 	timer_value = timer_query();
 	FrameTime = timer_value - last_timer_value;
+
+#ifdef TIMEDEMO
+	// we use the real times without the framerate limiter 
+	timedemo_addframe();
+#endif
 
 	while (FrameTime < f1_0 / (GameCfg.VSync?MAXIMUM_FPS:GameArg.SysMaxFPS))
 	{

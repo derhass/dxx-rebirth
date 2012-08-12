@@ -218,6 +218,10 @@ void ReadCmdArgs(void)
 	GameArg.DbgSdlHWSurface = FindArg("-hwsurface");
 	GameArg.DbgSdlASyncBlit = FindArg("-asyncblit");
 #endif
+	
+#ifdef TIMEDEMO
+	GameArg.timedemo                = get_int_arg("-timedemo", 0);
+#endif
 }
 
 void args_exit(void)

@@ -41,6 +41,7 @@ use_tracker = int(ARGUMENTS.get('use_tracker', 1))
 verbosebuild = int(ARGUMENTS.get('verbosebuild', 0))
 raspberrypi = int(ARGUMENTS.get('raspberrypi', 0))
 rpi_vc_path = str(ARGUMENTS.get('rpi_vc_path', RPI_DEFAULT_VC_PATH))
+timedemo =  int(ARGUMENTS.get('timedemo', 0))
 
 # automatic setup for raspberrypi
 if (raspberrypi == 1):
@@ -436,6 +437,10 @@ if (raspberrypi == 1):
 	lflags += ' -L'+rpi_vc_path+'/lib'
 	libs += ['bcm_host']
 
+# Timedemo support?
+if (timedemo == 1):
+	env.Append(CPPDEFINES = ['TIMEDEMO'])
+
 print '\n'
 
 env.Append(CPPDEFINES = [('SHAREPATH', '\\"' + str(sharepath) + '\\"')])
@@ -478,6 +483,7 @@ Help(PROGRAM_NAME + ', SConstruct file help:' +
 	'verbosebuild=[0/1]'  print out all compiler/linker messages during building [default: 0]
 	'raspberrypi=[0/1]'   build for Raspberry Pi (automatically sets opengles and opengles_lib) [default: 0]
 	'rpi_vc_path=[DIR]'   use [DIR] to look for VideoCore libraries/header files (RPi only)
+	'timedemo=[0/1]'      enable -timedemo switch for benchmarking demo playback [default: 0]
 		
 	Default values:
 	""" + ' sharepath = ' + DATA_DIR + """

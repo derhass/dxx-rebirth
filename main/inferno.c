@@ -171,6 +171,10 @@ void print_commandline_help()
 	printf( "  -asyncblit                    Use queued blits over SDL. Can speed up rendering\n");
 #endif // OGL
 
+#ifdef TIMEDEMO
+	printf( "  -timedemo <n>                 Time statistics for demo playback: <n>: buffer size, 0 to disable\n");
+#endif
+
 	printf( "\n Help:\n\n");
 	printf( "  -help, -h, -?, ?             View this help screen\n");
 	printf( "\n\n");

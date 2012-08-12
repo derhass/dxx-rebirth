@@ -3351,6 +3351,20 @@ void newdemo_start_playback(char * filename)
 		return;
 	}
 
+#ifdef TIMEDEMO
+	if (GameArg.timedemo > 0) {
+		char filename_timedemo[PATH_MAX+FILENAME_LEN+5];
+		char *dot;
+		int l;
+
+		dot=strrchr(filename2,'.');
+		l=(dot)?(dot-filename2):strlen(filename2);
+		memcpy(filename_timedemo,filename2,l);
+		memcpy(filename_timedemo+l,".tdm",5);
+		timedemo_setup(GameArg.timedemo, filename_timedemo);
+	}
+#endif
+
 	nd_playback_v_bad_read = 0;
 #ifdef NETWORK
 	change_playernum_to(0);                 // force playernum to 0
@@ -3386,6 +3400,9 @@ void newdemo_stop_playback()
 {
 	PHYSFS_close(infile);
 	Newdemo_state = ND_STATE_NORMAL;
+#ifdef TIMEDEMO
+	timedemo_setup(0, NULL);
+#endif
 #ifdef NETWORK
 	change_playernum_to(0);             //this is reality
 #endif

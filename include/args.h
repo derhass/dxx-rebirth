@@ -91,6 +91,9 @@ typedef struct Arg
 	int DbgSdlHWSurface;
 	int DbgSdlASyncBlit;
 #endif
+#ifdef TIMEDEMO
+	int timedemo;
+#endif
 } __pack__ Arg;
 
 extern struct Arg GameArg;
