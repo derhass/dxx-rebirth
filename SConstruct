@@ -431,7 +431,7 @@ if (use_udp == 1):
 # Raspberry Pi?
 if (raspberrypi == 1):
 	print "using Raspberry Pi vendor libs in %s" % rpi_vc_path
-	env.Append(CPPDEFINES = ['RPI'])
+	env.Append(CPPDEFINES = ['RPI', 'WORDS_NEED_ALIGNMENT'])
 	env.Append(CPPPATH = [rpi_vc_path+'/include', rpi_vc_path+'/include/interface/vcos/pthreads'])
 	lflags += ' -L'+rpi_vc_path+'/lib'
 	libs += ['bcm_host']
