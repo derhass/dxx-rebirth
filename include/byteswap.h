@@ -55,6 +55,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #define PUT_INTEL_INT(d, s)     { *(uint *)(d) = INTEL_INT((uint)(s)); }
 #define PUT_INTEL_SHORT(d, s)   { *(ushort *)(d) = INTEL_SHORT((ushort)(s)); }
 #else // ! WORDS_NEED_ALIGNMENT
+#include <string.h>
 static inline u_int64_t GET_INTEL_INT64(void *s)
 {
 	u_int64_t tmp;
