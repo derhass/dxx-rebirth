@@ -2013,7 +2013,7 @@ void show_reticle(int reticle_type, int secondary_display)
 	if (primary_bm_num && Primary_weapon==LASER_INDEX && (Players[Player_num].flags & PLAYER_FLAGS_QUAD_LASERS))
 		primary_bm_num++;
 
-	if (Secondary_weapon!=CONCUSSION_INDEX && Secondary_weapon!=HOMING_INDEX)
+	if (Secondary_weapon_to_gun_num[Secondary_weapon]==7)
 		secondary_bm_num += 3;
 	else if (secondary_bm_num && !(Missile_gun&1))
 			secondary_bm_num++;

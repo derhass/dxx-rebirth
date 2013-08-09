@@ -57,6 +57,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "u_mem.h"
 #include "args.h"
 #include "ai.h"
+#include "laser.h"
 #include "state.h"
 #include "multi.h"
 #include "gr.h"

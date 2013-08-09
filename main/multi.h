@@ -64,7 +64,7 @@ extern int multi_protocol; // set and determinate used protocol
 #define MULTI_PROTO_UDP 1 // UDP protocol
 
 // What version of the multiplayer protocol is this? Increment each time something drastic changes in Multiplayer without the version number changes. Can be reset to 0 each time the version of the game changes
-#define MULTI_PROTO_VERSION 3
+#define MULTI_PROTO_VERSION 4
 // PROTOCOL VARIABLES AND DEFINES - END
 
 
@@ -74,7 +74,9 @@ extern int multi_protocol; // set and determinate used protocol
 	BEFORE	\
 	VALUE(MULTI_POSITION             , 25)	\
 	VALUE(MULTI_REAPPEAR             , 4)	\
-	VALUE(MULTI_FIRE                 , 8)	\
+	VALUE(MULTI_FIRE                  , 6)	\
+	VALUE(MULTI_FIRE_TRACK            , 9)	\
+	VALUE(MULTI_FIRE_BOMB             , 8)	\
 	VALUE(MULTI_KILL                 , 5)	\
 	VALUE(MULTI_REMOVE_OBJECT        , 4)	\
 	VALUE(MULTI_MESSAGE              , 37)	/* (MAX_MESSAGE_LENGTH = 40) */	\
@@ -121,8 +123,6 @@ for_each_multiplayer_command(enum {, define_multiplayer_command, });
 #define MAX_MULTI_MESSAGE_LEN  90 //didn't change it, just moved it up
 
 #define MAX_NET_CREATE_OBJECTS 20
-
-#define MISSILE_ADJUST 6
 
 #define NETGAME_ANARCHY         0
 #define NETGAME_TEAM_ANARCHY    1
@@ -203,7 +203,7 @@ void multi_show_player_list(void);
 void multi_do_protocol_frame(int force, int listen);
 void multi_do_frame(void);
 
-void multi_send_fire(int laser_gun, int laser_level, int laser_flags, int laser_fired, short laser_track);
+void multi_send_fire(int laser_gun, int laser_level, int laser_flags, int laser_fired, short laser_track, int is_bomb_objnum);
 void multi_send_destroy_controlcen(int objnum, int player);
 void multi_send_endlevel_start(int);
 void multi_send_player_explode(char type);
@@ -337,12 +337,17 @@ extern void multi_do_powcap_update();
 extern void multi_send_powcap_update();
 extern void multi_send_kill_goal_counts();
 
+//how to encode missiles & flares in weapon packets
+#define MISSILE_ADJUST  100
+#define FLARE_ADJUST    127
+
 // Globals for protocol-bound Refuse-functions
 extern char RefuseThisPlayer,WaitForRefuseAnswer,RefuseTeam,RefusePlayerName[12];
 extern fix64 RefuseTimeLimit;
 #define REFUSE_INTERVAL (F1_0*8)
 
 extern struct netgame_info Netgame;
+
 
 /*
  * The Network Players structure

@@ -140,6 +140,7 @@ extern void select_weapon(int weapon_num, int secondary_flag, int print_message,
 
 extern const int  Primary_ammo_max[MAX_PRIMARY_WEAPONS];
 extern const ubyte	Secondary_ammo_max[MAX_PRIMARY_WEAPONS];
+extern const ubyte Secondary_weapon_to_gun_num[MAX_SECONDARY_WEAPONS];
 
 #define HAS_WEAPON_FLAG 1
 #define HAS_ENERGY_FLAG 2
