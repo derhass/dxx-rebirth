@@ -570,16 +570,24 @@ void PALETTE_FLASH_ADD(int _dr, int _dg, int _db)
 void diminish_palette_towards_normal(void)
 {
 	int	dec_amount = 0;
+	float brightness_correction = 1-((float)gr_palette_get_gamma()/64); // to compensate for brightness setting of the game
 
-	//	Diminish at DIMINISH_RATE units/second.
-	//	For frame rates > DIMINISH_RATE Hz, use randomness to achieve this.
-	if (FrameTime < F1_0/DIMINISH_RATE) {
-		if (d_rand() < FrameTime*DIMINISH_RATE/2)	//	Note: d_rand() is in 0..32767, and 8 Hz means decrement every frame
+	// Diminish at DIMINISH_RATE units/second.
+	if (FrameTime < (F1_0/DIMINISH_RATE))
+	{
+		static fix diminish_timer = 0;
+		diminish_timer += FrameTime;
+		if (diminish_timer >= (F1_0/DIMINISH_RATE))
+		{
+			diminish_timer -= (F1_0/DIMINISH_RATE);
 			dec_amount = 1;
-	} else {
-		dec_amount = f2i(FrameTime*DIMINISH_RATE);	// one second = DIMINISH_RATE counts
+		}
+	}
+	else
+	{
+		dec_amount = f2i(FrameTime*DIMINISH_RATE); // one second = DIMINISH_RATE counts
 		if (dec_amount == 0)
-			dec_amount++;				// make sure we decrement by something
+			dec_amount++; // make sure we decrement by something
 	}
 
 	if (PaletteRedAdd > 0 ) { PaletteRedAdd -= dec_amount; if (PaletteRedAdd < 0 ) PaletteRedAdd = 0; }
@@ -594,7 +602,7 @@ void diminish_palette_towards_normal(void)
 	if ( (Newdemo_state==ND_STATE_RECORDING) && (PaletteRedAdd || PaletteGreenAdd || PaletteBlueAdd) )
 		newdemo_record_palette_effect(PaletteRedAdd, PaletteGreenAdd, PaletteBlueAdd);
 
-	gr_palette_step_up( PaletteRedAdd, PaletteGreenAdd, PaletteBlueAdd );
+	gr_palette_step_up( PaletteRedAdd*brightness_correction, PaletteGreenAdd*brightness_correction, PaletteBlueAdd*brightness_correction );
 }
 
 int	Redsave, Bluesave, Greensave;
@@ -606,8 +614,10 @@ void palette_save(void)
 
 void palette_restore(void)
 {
+	float brightness_correction = 1-((float)gr_palette_get_gamma()/64);
+
 	PaletteRedAdd = Redsave; PaletteBlueAdd = Bluesave; PaletteGreenAdd = Greensave;
-	gr_palette_step_up( PaletteRedAdd, PaletteGreenAdd, PaletteBlueAdd );
+	gr_palette_step_up( PaletteRedAdd*brightness_correction, PaletteGreenAdd*brightness_correction, PaletteBlueAdd*brightness_correction );
 }
 
 extern void dead_player_frame(void);
