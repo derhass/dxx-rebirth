@@ -402,11 +402,12 @@ extern void ogl_loadbmtexture(grs_bitmap *bm);
 void update_cockpits()
 {
 	grs_bitmap *bm;
-	PIGGY_PAGE_IN(cockpit_bitmap[PlayerCfg.CockpitMode[1]]);
-	bm = &GameBitmaps[cockpit_bitmap[PlayerCfg.CockpitMode[1]].index];
+	int mode = PlayerCfg.CockpitMode[1];
 
 	switch( PlayerCfg.CockpitMode[1] )	{
 		case CM_FULL_COCKPIT:
+			PIGGY_PAGE_IN(cockpit_bitmap[mode]);
+			bm=&GameBitmaps[cockpit_bitmap[mode].index];
 			gr_set_current_canvas(NULL);
 #ifdef OGL
 			ogl_ubitmapm_cs (0, 0, -1, grd_curcanv->cv_bitmap.bm_h, bm,255, F1_0);
@@ -415,6 +416,8 @@ void update_cockpits()
 #endif
 			break;
 		case CM_REAR_VIEW:
+			PIGGY_PAGE_IN(cockpit_bitmap[mode]);
+			bm=&GameBitmaps[cockpit_bitmap[mode].index];
 			gr_set_current_canvas(NULL);
 #ifdef OGL
 			ogl_ubitmapm_cs (0, 0, -1, grd_curcanv->cv_bitmap.bm_h, bm,255, F1_0);
@@ -425,6 +428,8 @@ void update_cockpits()
 		case CM_FULL_SCREEN:
 			break;
 		case CM_STATUS_BAR:
+			PIGGY_PAGE_IN(cockpit_bitmap[mode]);
+			bm=&GameBitmaps[cockpit_bitmap[mode].index];
 			gr_set_current_canvas(NULL);
 #ifdef OGL
 			ogl_ubitmapm_cs (0, (HIRESMODE?(SHEIGHT*2)/2.6:(SHEIGHT*2)/2.72), -1, ((int) ((double) (bm->bm_h) * (HIRESMODE?(double)SHEIGHT/480:(double)SHEIGHT/200) + 0.5)), bm,255, F1_0);
