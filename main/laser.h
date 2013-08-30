@@ -90,7 +90,7 @@ enum weapon_type_t
 #define MUZZLE_QUEUE_MAX    8
 
 // Constants governing homing missile behavior.
-#define HOMING_MAX_TRACKABLE_DOT        (5*F1_0/7) // was (7*F1_0/8) but changed to compensate all the change from D2 to D1 trackong code
+#define HOMING_MAX_TRACKABLE_DOT        (3*F1_0/4) // was (7*F1_0/8) in original Descent 2
 #define HOMING_MIN_TRACKABLE_DOT        (3*(F1_0 - HOMING_MAX_TRACKABLE_DOT)/4 + HOMING_MAX_TRACKABLE_DOT)
 #define HOMING_MAX_TRACKABLE_DIST       (F1_0*250)
 #define HOMING_FLY_STRAIGHT_TIME        (F1_0/8)
