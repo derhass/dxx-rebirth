@@ -105,9 +105,9 @@ struct segment {
 	// -- Moved to segment2 to make this struct 512 bytes long --
 	ubyte   special;    // what type of center this is
 	sbyte   matcen_num; // which center segment is associated with.
-	fix     static_light;
 	sbyte   value;
 	ubyte   s2_flags;
+	fix     static_light;
 	//short   value;
 	//fix     static_light; //average static light in segment
 	//#ifndef EDITOR
