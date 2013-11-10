@@ -1193,7 +1193,6 @@ void add_segment_edges(automap *am, segment *seg)
 	int	sn;
 	int	segnum = seg-Segments;
 	int	hidden_flag;
-	int ttype,trigger_num;
 	
 	for (sn=0;sn<MAX_SIDES_PER_SEGMENT;sn++) {
 		int	vertex_list[4];
@@ -1223,9 +1222,8 @@ void add_segment_edges(automap *am, segment *seg)
 
 		if (seg->sides[sn].wall_num > -1)	{
 		
-			trigger_num = Walls[seg->sides[sn].wall_num].trigger;
-			ttype = Triggers[trigger_num].type;
-			if (ttype==TT_SECRET_EXIT)
+			int trigger_num = Walls[seg->sides[sn].wall_num].trigger;
+			if (trigger_num != -1 && Triggers[trigger_num].type==TT_SECRET_EXIT)
 				{
 			    color = BM_XRGB( 29, 0, 31 );
 				 no_fade=1;
