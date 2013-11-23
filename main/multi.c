@@ -1444,6 +1444,7 @@ multi_do_fire(const ubyte *buf)
 	ubyte weapon;
 	char pnum;
 	sbyte flags;
+	vms_vector shot_orientation;
 
 	// Act out the actual shooting
 	pnum = buf[1];
@@ -1457,20 +1458,24 @@ multi_do_fire(const ubyte *buf)
 		Network_laser_track = objnum_remote_to_local(Network_laser_track, buf[8]);
 	}
 
+	shot_orientation.x = (fix) GET_INTEL_INT(buf + 6); 
+	shot_orientation.y = (fix) GET_INTEL_INT(buf + 10); 
+	shot_orientation.z = (fix) GET_INTEL_INT(buf + 14); 
+
 	Assert (pnum < N_players);
 
 	if (Objects[Players[(int)pnum].objnum].type == OBJ_GHOST)
 		multi_make_ghost_player(pnum);
 
 	if (weapon == FLARE_ADJUST)
-		Laser_player_fire( Objects+Players[(int)pnum].objnum, FLARE_ID, 6, 1, 0);
+		Laser_player_fire( Objects+Players[(int)pnum].objnum, FLARE_ID, 6, 1, 0, shot_orientation);
 	else if (weapon >= MISSILE_ADJUST) {
 		int weapon_id,weapon_gun,objnum,remote_objnum;
 
 		weapon_id = Secondary_weapon_to_weapon_info[weapon-MISSILE_ADJUST];
 		weapon_gun = Secondary_weapon_to_gun_num[weapon-MISSILE_ADJUST] + (flags & 1);
 
-		objnum = Laser_player_fire( Objects+Players[(int)pnum].objnum, weapon_id, weapon_gun, 1, 0 );
+		objnum = Laser_player_fire( Objects+Players[(int)pnum].objnum, weapon_id, weapon_gun, 1, 0, shot_orientation );
 		if (buf[0] == MULTI_FIRE_BOMB)
 		{
 			remote_objnum = GET_INTEL_SHORT(buf + 6);
@@ -1490,7 +1495,7 @@ multi_do_fire(const ubyte *buf)
 				Players[(int)pnum].flags &= ~PLAYER_FLAGS_QUAD_LASERS;
 		}
 
-		do_laser_firing(Players[(int)pnum].objnum, weapon, (int)buf[3], flags, (int)buf[5]);
+		do_laser_firing(Players[(int)pnum].objnum, weapon, (int)buf[3], flags, (int)buf[5], shot_orientation);
 
 		if (weapon == FUSION_INDEX)
 			Fusion_charge = save_charge;
@@ -2316,6 +2321,8 @@ multi_process_bigdata(const ubyte *buf, unsigned len)
 
 void multi_send_fire(int laser_gun, int laser_level, int laser_flags, int laser_fired, short laser_track, int is_bomb_objnum)
 {
+	object* ownship = Objects + Players[Player_num].objnum;
+
 	multi_do_protocol_frame(1, 0); // provoke positional update if possible
 
 	multibuf[0] = (char)MULTI_FIRE;
@@ -2333,6 +2340,11 @@ void multi_send_fire(int laser_gun, int laser_level, int laser_flags, int laser_
 	multibuf[3] = (char)laser_level;
 	multibuf[4] = (char)laser_flags;
 	multibuf[5] = (char)laser_fired;
+
+	PUT_INTEL_INT(multibuf+6 , ownship->orient.fvec.x);
+	PUT_INTEL_INT(multibuf+10, ownship->orient.fvec.y);
+	PUT_INTEL_INT(multibuf+14, ownship->orient.fvec.z);
+
 	/*
 	 * If we fire a bomb, it's persistent. Let others know of it's objnum so host can track it's behaviour over clients (host-authority functions, D2 chaff ability).
 	 * If we fire a tracking projectile, we should others let know abotu what we track but we have to pay attention it's mapped correctly.
@@ -2341,8 +2353,8 @@ void multi_send_fire(int laser_gun, int laser_level, int laser_flags, int laser_
 	if (multibuf[0] == MULTI_FIRE_BOMB)
 	{
 		map_objnum_local_to_local(is_bomb_objnum);
-		PUT_INTEL_SHORT(multibuf+6, is_bomb_objnum);
-		multi_send_data(multibuf, 8, 1);
+		PUT_INTEL_SHORT(multibuf+18, is_bomb_objnum);
+		multi_send_data(multibuf, 20, 1);
 	}
 	else if (multibuf[0] == MULTI_FIRE_TRACK)
 	{
@@ -2350,12 +2362,12 @@ void multi_send_fire(int laser_gun, int laser_level, int laser_flags, int laser_
 		short remote_laser_track = -1;
 
 		remote_laser_track = objnum_local_to_remote((short)laser_track, &remote_owner);
-		PUT_INTEL_SHORT(multibuf+6, remote_laser_track);
-		multibuf[8] = remote_owner;
-		multi_send_data(multibuf, 9, 1);
+		PUT_INTEL_SHORT(multibuf+18, remote_laser_track);
+		multibuf[20] = remote_owner;
+		multi_send_data(multibuf, 21, 1);
 	}
 	else
-		multi_send_data(multibuf, 6, 1);
+		multi_send_data(multibuf, 18, 1);
 }
 
 
