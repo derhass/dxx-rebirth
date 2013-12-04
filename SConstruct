@@ -283,7 +283,7 @@ class DXXProgram(DXXCommon):
 	# execute.
 	class DarwinPlatformSettings(DXXCommon.DarwinPlatformSettings):
 		def __init__(self,user_settings):
-			DXXCommon.DarwinPlatformSettings.__init__(self)
+			DXXCommon.DarwinPlatformSettings.__init__(self,user_settings)
 			user_settings.sharepath = ''
 		def adjust_environment(self,program,env):
 			DXXCommon.DarwinPlatformSettings.adjust_environment(self, program, env)
