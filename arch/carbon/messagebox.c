@@ -22,7 +22,7 @@ void display_mac_alert(const char *message, int error)
 	d_event	event;
 	int		fullscreen;
 	bool	osX = FALSE;
-	uint 	response;
+	SInt32 	response;
 	int16_t itemHit;
 
 	// Handle Descent's windows properly
@@ -32,7 +32,7 @@ void display_mac_alert(const char *message, int error)
 	if (grd_curscreen && (fullscreen = gr_check_fullscreen()))
 		gr_toggle_fullscreen();
 	
-	osX = ( Gestalt(gestaltSystemVersion, (long *) &response) == noErr)
+	osX = ( Gestalt(gestaltSystemVersion, &response) == noErr)
 		&& (response >= 0x01000 );
 
     ShowCursor();
