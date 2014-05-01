@@ -54,6 +54,10 @@
 
 #include "compiler-lengthof.h"
 
+#ifdef USE_TRACKER
+#  include "curlutil.h"
+#endif
+
 // Prototypes
 static void net_udp_init();
 static void net_udp_close();
@@ -916,12 +920,6 @@ void net_udp_init()
 
 	multi_new_game();
 	net_udp_flush();
-	
-	// Initialize the tracker info
-#ifdef USE_TRACKER
-	printf( "Tracker: Init\n" );
-	// udp_tracker_init();
-#endif
 }
 
 void net_udp_close()
@@ -3931,19 +3929,10 @@ void net_udp_listen()
 			size = udp_receive_packet( 1, packet, UPID_MAX_SIZE, &sender_addr );
 		}
 	}
-	
+
+	// Do some curl stuff too
 #ifdef USE_TRACKER
-	printf( "Tracker: Receive data\n" );
-	/*
-	if( UDP_Socket[2] != -1 )
-	{
-		size = udp_receive_packet( 2, packet, UPID_MAX_SIZE, &sender_addr );
-		while ( size > 0 )	{
-			net_udp_process_packet( packet, sender_addr, size );
-			size = udp_receive_packet( 2, packet, UPID_MAX_SIZE, &sender_addr );
-		}
-	}
-	*/
+	CurlUtil::Tick();
 #endif
 }
 

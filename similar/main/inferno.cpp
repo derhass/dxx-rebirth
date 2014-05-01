@@ -94,6 +94,10 @@ char copyright[] = "DESCENT II  COPYRIGHT (C) 1994-1996 PARALLAX SOFTWARE CORPOR
 #include "net_udp.h"
 #endif
 
+#ifdef USE_TRACKER
+#  include "curlutil.h"
+#endif
+
 int Screen_mode=-1;					//game screen or editor screen?
 
 #if defined(DXX_BUILD_DESCENT_I)
@@ -345,6 +349,10 @@ int main(int argc, char *argv[])
 	if (!PHYSFSX_checkSupportedArchiveTypes())
 		return(0);
 
+	// Initialize cURL
+	if( !CurlUtil::Init() )
+		return 0;
+
 #if defined(DXX_BUILD_DESCENT_I)
 	if (! PHYSFSX_contfile_init("descent.hog", 1))
 #define DXX_NAME_NUMBER	"1"
@@ -538,6 +546,7 @@ int main(int argc, char *argv[])
 	show_order_form();
 
 	con_printf( CON_DEBUG, "\nCleanup..." );
+	CurlUtil::Deinit();
 	close_game();
 	texmerge_close();
 	gamedata_close();
