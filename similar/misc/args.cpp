@@ -117,8 +117,7 @@ static void ReadCmdArgs(void)
 #ifdef USE_UDP
 	GameArg.MplUdpHostAddr = UDP_MANUAL_ADDR_DEFAULT;
 #ifdef USE_TRACKER
-	GameArg.MplTrackerAddr = TRACKER_ADDR_DEFAULT;
-	GameArg.MplTrackerPort = TRACKER_PORT_DEFAULT;
+	GameArg.MplTrackerHost = TRACKER_HOST_DEFAULT;
 #endif
 #endif
 	GameArg.DbgVerbose = CON_NORMAL;
@@ -218,10 +217,8 @@ static void ReadCmdArgs(void)
 		else if (!d_stricmp(p, "-udp_myport"))
 			GameArg.MplUdpMyPort = arg_integer(pp, end);
 #ifdef USE_TRACKER
-		else if (!d_stricmp(p, "-tracker_hostaddr"))
-			GameArg.MplTrackerAddr = arg_string(pp, end);
-		else if (!d_stricmp(p, "-tracker_hostport"))
-			GameArg.MplTrackerPort = arg_integer(pp, end);
+		else if (!d_stricmp(p, "-tracker_host"))
+			GameArg.MplTrackerHost = arg_string(pp, end);
 #endif
 #endif
 

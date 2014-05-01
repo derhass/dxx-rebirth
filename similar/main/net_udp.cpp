@@ -99,15 +99,11 @@ UDP_sequence_packet UDP_sync_player; // For rejoin object syncing
 UDP_netgame_info_lite Active_udp_games[UDP_MAX_NETGAMES];
 int num_active_udp_games = 0;
 int num_active_udp_changed = 0;
-static int UDP_Socket[3] = { -1, -1, -1 };
+static int UDP_Socket[2] = { -1, -1 };
 static char UDP_MyPort[6] = "";
 struct _sockaddr GBcast; // global Broadcast address clients and hosts will use for lite_info exchange over LAN
 #ifdef IPv6
 struct _sockaddr GMcast_v6; // same for IPv6-only
-#endif
-#ifdef USE_TRACKER
-struct _sockaddr TrackerSocket;
-int iTrackerVerified = 0;
 #endif
 
 static fix64 StartAbortMenuTime;
@@ -371,168 +367,6 @@ static int udp_receive_packet(int socknum, ubyte *text, int len, struct _sockadd
 }
 /* General UDP functions - END */
 
-/* Tracker stuff, begin! */
-#ifdef USE_TRACKER
-
-/* Tracker defines:  System stuff */
-#define TRACKER_SYS_VERSION		0x00	/* Tracker protocol version */
-
-/* Tracker defines:  Packet stuff */
-#define TRACKER_PKT_REGISTER		0	/* Register a game */
-#define TRACKER_PKT_UNREGISTER		1	/* Unregister our game */
-#define TRACKER_PKT_GAMELIST		2	/* Request the game list */
-
-/* Tracker initialization */
-static int udp_tracker_init()
-{
-	int tracker_port = d_rand() % 0xffff;
-
-	while (tracker_port <= 1024)
-		tracker_port = d_rand() % 0xffff;
-
-	// Zero it out
-	memset( &TrackerSocket, 0, sizeof( TrackerSocket ) );
-	
-	// Open the socket
-	udp_open_socket( 2, tracker_port );
-	
-	// Fill the address
-	if( udp_dns_filladdr( GameArg.MplTrackerAddr, GameArg.MplTrackerPort, &TrackerSocket ) < 0 )
-		return -1;
-	
-	// Yay
-	return 0;
-}
-
-/* Unregister from the tracker */
-static int udp_tracker_unregister()
-{
-	// Variables
-	int iLen = 5;
-	ubyte pBuf[iLen];
-	
-	// Put the opcode
-	pBuf[0] = TRACKER_PKT_UNREGISTER;
-	
-	// Put the GameID
-	PUT_INTEL_INT( pBuf+1, Netgame.protocol.udp.GameID );
-	
-	// Send it off
-	return dxx_sendto( UDP_Socket[2], pBuf, iLen, 0, TrackerSocket );
-}
-
-/* Tell the tracker we're starting a game */
-static int udp_tracker_register()
-{
-	// Variables
-	int iLen = 14;
-	ubyte pBuf[iLen];
-	
-	// Reset the last tracker message
-	iTrackerVerified = 0;
-	
-	// Put the opcode
-	pBuf[0] = TRACKER_PKT_REGISTER;
-	
-	// Put the protocol version
-	pBuf[1] = TRACKER_SYS_VERSION;
-	
-	// Write the game version (d1 = 1, d2 = 2, x = oshiii)
-#if defined(DXX_BUILD_DESCENT_I)
-	pBuf[2] = 0x01;
-#elif defined(DXX_BUILD_DESCENT_II)
-	pBuf[2] = 0x02;
-#endif
-	
-	// Write the port we're running on
-	PUT_INTEL_SHORT( pBuf+3, atoi( UDP_MyPort ) );
-	
-	// Put the GameID
-	PUT_INTEL_INT( pBuf+5, Netgame.protocol.udp.GameID );
-	
-	// Now, put the game version
-	PUT_INTEL_SHORT( pBuf+9, DXX_VERSION_MAJORi );
-	PUT_INTEL_SHORT( pBuf+11, DXX_VERSION_MINORi );
-	PUT_INTEL_SHORT( pBuf+13, DXX_VERSION_MICROi );
-	
-	// Send it off
-	return dxx_sendto( UDP_Socket[2], pBuf, iLen, 0, TrackerSocket );
-}
-
-/* Ask the tracker to send us a list of games */
-static int udp_tracker_reqgames()
-{
-	// Variables
-	int iLen = 3;
-	ubyte pBuf[iLen];
-	
-	// Put the opcode
-	pBuf[0] = TRACKER_PKT_GAMELIST;
-	
-#if defined(DXX_BUILD_DESCENT_I)
-// 	// Put the game version (d1)
-	pBuf[1] = 0x01;
-#elif defined(DXX_BUILD_DESCENT_II)
-	// Put the game version (d2)
-	pBuf[1] = 0x02;
-#endif
-	
-	// If we're IPv6 ready, send that too
-#ifdef IPv6
-	pBuf[2] = 1;
-#else
-	pBuf[2] = 0;
-#endif
-	
-	// Send it off
-	return dxx_sendto( UDP_Socket[2], pBuf, iLen, 0, TrackerSocket );
-}
-
-/* The tracker has sent us a game.  Let's list it. */
-static int udp_tracker_process_game( ubyte *data, int data_len )
-{
-	// All our variables
-	struct _sockaddr sAddr;
-	int iPos = 1;
-	int iPort = 0;
-	int bIPv6 = 0;
-	char *sIP = NULL;
-	
-	// Zero it out
-	memset( &sAddr, 0, sizeof( sAddr ) );
-	
-	// Get the IPv6 flag from the tracker
-	bIPv6 = data[iPos++];
-	(void)bIPv6; // currently unused
-	
-	// Get the IP
-	sIP = (char *)&data[iPos];
-	iPos += strlen( sIP ) + 1;
-	
-	// Get the port
-	iPort = GET_INTEL_SHORT( &data[iPos] );
-	iPos += 2;
-	
-	// Get the DNS stuff
-	if( udp_dns_filladdr( sIP, iPort, &sAddr ) < 0 )
-		return -1;
-	
-	// Now move on to BIGGER AND BETTER THINGS!
-	net_udp_process_game_info( &data[iPos - 1], data_len - iPos, sAddr, 1 );
-	return 0;
-}
-
-#else
-static int udp_tracker_init()
-{
-	return -1;
-}
-
-static void udp_tracker_reqgames()
-{
-}
-#endif /* USE_TRACKER */
-
 struct direct_join
 {
 	struct _sockaddr host_addr;
@@ -735,7 +569,10 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 #ifdef IPv6
 			net_udp_request_game_info(GMcast_v6, 1);
 #endif
-			udp_tracker_reqgames();
+#ifdef USE_TRACKER
+			printf( "Tracker: ReqGames\n" );
+			// udp_tracker_reqgames();
+#endif
 			break;
 		}
 		case EVENT_IDLE:
@@ -778,8 +615,10 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 #ifdef IPv6
 				net_udp_request_game_info(GMcast_v6, 1);
 #endif
-				
-				udp_tracker_reqgames();
+#ifdef USE_TRACKER
+				printf( "Tracker: ReqGames\n" );
+				// udp_tracker_reqgames();
+#endif
 				// All done
 				break;
 			}
@@ -796,6 +635,7 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 				break;
 			}
 #ifdef USE_TRACKER
+			/*
 			if( key == KEY_F6 )
 			{
 				// Zero the list
@@ -809,6 +649,7 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 				// Break off
 				break;
 			}
+			*/
 #endif
 			if (key == KEY_ESC)
 			{
@@ -1077,7 +918,10 @@ void net_udp_init()
 	net_udp_flush();
 	
 	// Initialize the tracker info
-	udp_tracker_init();
+#ifdef USE_TRACKER
+	printf( "Tracker: Init\n" );
+	// udp_tracker_init();
+#endif
 }
 
 void net_udp_close()
@@ -1090,8 +934,6 @@ void net_udp_close()
 		udp_close_socket(0);
 	if( UDP_Socket[1] != -1 )
 		udp_close_socket(1);
-	if( UDP_Socket[2] != -1 )
-		udp_close_socket(2);
 }
 
 // Send PID_ENDLEVEL in regular intervals and listen for them (host also does the packets for playing clients)
@@ -2694,14 +2536,6 @@ static void net_udp_process_packet(ubyte *data, struct _sockaddr sender_addr, in
 		case UPID_MDATA_ACK:
 			net_udp_noloss_got_ack(data, length);
 			break;
-#ifdef USE_TRACKER
-		case UPID_TRACKER_VERIFY:
-			iTrackerVerified = 1;
-			break;
-		case UPID_TRACKER_INCGAME:
-			udp_tracker_process_game( data, length );
-			break;
-#endif
 		default:
 			con_printf(CON_DEBUG, "unknown packet type received - type %i", data[0]);
 			break;
@@ -2971,7 +2805,7 @@ static void net_udp_more_game_options ()
 	snprintf(KillText, sizeof(KillText), "Kill Goal: %d kills", Netgame.KillGoal*5);
 #ifdef USE_TRACKER
 	char tracker[52];
-	snprintf(tracker, sizeof(tracker), "Track this game on\n%s:%u", GameArg.MplTrackerAddr, GameArg.MplTrackerPort);
+	snprintf(tracker, sizeof(tracker), "Track this game on\n%s", GameArg.MplTrackerHost);
 #endif
 
 	DXX_UDP_MENU_OPTIONS(ADD);
@@ -3653,7 +3487,8 @@ static net_udp_select_players(void)
 GetPlayersAgain:
 #ifdef USE_TRACKER
 	if( Netgame.Tracker )
-		udp_tracker_register();
+		printf( "Tracker: Register\n" );
+		// udp_tracker_register();
 #endif
 
 	j=newmenu_do1( NULL, title, MAX_PLAYERS+4, m, net_udp_start_poll, spd, 1 );
@@ -3666,7 +3501,8 @@ GetPlayersAgain:
 		// Dump all players and go back to menu mode
 #ifdef USE_TRACKER
 		if( Netgame.Tracker )
-			udp_tracker_unregister();
+			printf( "Tracker: Unregister\n" );
+		//	udp_tracker_unregister();
 #endif
 
 abort:
@@ -4045,7 +3881,8 @@ void net_udp_leave_game()
 		N_players=nsave;
 #ifdef USE_TRACKER
 		if( Netgame.Tracker )
-			udp_tracker_unregister();
+			printf( "Tracker: Unregister\n" );
+		//	udp_tracker_unregister();
 #endif
 	}
 
@@ -4096,6 +3933,8 @@ void net_udp_listen()
 	}
 	
 #ifdef USE_TRACKER
+	printf( "Tracker: Receive data\n" );
+	/*
 	if( UDP_Socket[2] != -1 )
 	{
 		size = udp_receive_packet( 2, packet, UPID_MAX_SIZE, &sender_addr );
@@ -4104,6 +3943,7 @@ void net_udp_listen()
 			size = udp_receive_packet( 2, packet, UPID_MAX_SIZE, &sender_addr );
 		}
 	}
+	*/
 #endif
 }
 
@@ -4208,6 +4048,8 @@ void net_udp_do_frame(int force, int listen)
 	}
 
 #ifdef USE_TRACKER
+	printf( "Tracker: Update the tracker\n" );
+	/*
 	// If we use the tracker, tell the tracker about us every 10 seconds
 	if( Netgame.Tracker )
 	{
@@ -4242,6 +4084,7 @@ void net_udp_do_frame(int force, int listen)
 			nm_messagebox( TXT_WARNING, 1, TXT_OK, "No response from tracker!\nPossible causes:\nTracker is down\nYour port is likely not open!\n\nTracker: %s\nGame port: %s", GameArg.MplTrackerAddr, UDP_MyPort );
 		}
 	}
+	*/
 #endif
 
 	net_udp_ping_frame(time);

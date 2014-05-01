@@ -793,7 +793,7 @@ class DXXCommon(LazyObjectConstructor):
 					('sdlmixer', True, 'build with SDL_Mixer support for sound and music (includes external music support)'),
 					('ipv6', False, 'enable IPv6 compability'),
 					('use_udp', True, 'enable UDP support'),
-					('use_tracker', True, 'enable Tracker support (requires UDP)'),
+					('use_tracker', True, 'enable Tracker support'),
 					('verbosebuild', False, 'print out all compiler/linker messages during building'),
 				),
 			},
@@ -1144,9 +1144,10 @@ class DXXCommon(LazyObjectConstructor):
 		# UDP support?
 		if (self.user_settings.use_udp == 1):
 			env.Append(CPPDEFINES = ['USE_UDP'])
-			# Tracker support?  (Relies on UDP)
-			if( self.user_settings.use_tracker == 1 ):
-				env.Append( CPPDEFINES = [ 'USE_TRACKER' ] )
+
+		# Tracker support?
+		if( self.user_settings.use_tracker == 1 ):
+			env.Append( CPPDEFINES = [ 'USE_TRACKER' ] )
 
 		# Raspberry Pi?
 		if (self.user_settings.raspberrypi == 1):
@@ -1195,6 +1196,9 @@ class DXXArchive(DXXCommon):
 'misc/hmp.cpp',
 'misc/ignorecase.cpp',
 'misc/strutil.cpp',
+'misc/json/json_reader.cpp',
+'misc/json/json_value.cpp',
+'misc/json/json_writer.cpp',
 'texmap/ntmap.cpp',
 'texmap/scanline.cpp'
 ]
@@ -1642,7 +1646,6 @@ class D1XProgram(DXXProgram):
 'main/bmread.cpp',
 'main/custom.cpp',
 'main/snddecom.cpp',
-#'tracker/client/tracker_client.c'
 ]
 ],
 	}])

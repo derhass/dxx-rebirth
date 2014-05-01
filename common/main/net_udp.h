@@ -35,8 +35,7 @@ void net_udp_send_netgame_update();
 #define UDP_PORT_DEFAULT 42424 // Our default port - easy to remember: D = 4, X = 24, X = 24
 #define UDP_MANUAL_ADDR_DEFAULT "localhost"
 #ifdef USE_TRACKER
-#define TRACKER_ADDR_DEFAULT "dxxtracker.reenigne.net"
-#define TRACKER_PORT_DEFAULT 42420
+#define TRACKER_HOST_DEFAULT "dxxtracker.reenigne.net"
 #endif
 #if defined(DXX_BUILD_DESCENT_I)
 #define UDP_REQ_ID "D1XR" // ID string for a request packet
@@ -86,10 +85,6 @@ void net_udp_send_netgame_update();
 #define UPID_MDATA_ACK				 19 // ACK packet for UPID_MDATA_P1.
 #define UPID_MAX_SIZE			       1024 // Max size for a packet
 #define UPID_MDATA_BUF_SIZE			454
-#ifdef USE_TRACKER
-#  define UPID_TRACKER_VERIFY			 21 // The tracker has successfully gotten a hold of us
-#  define UPID_TRACKER_INCGAME			 22 // The tracker is sending us some game info
-#endif
 
 // Structure keeping lite game infos (for netlist, etc.)
 struct UDP_netgame_info_lite

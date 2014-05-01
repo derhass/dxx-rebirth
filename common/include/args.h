@@ -80,8 +80,7 @@ struct Arg
 	int MplUdpHostPort;
 	int MplUdpMyPort;
 #ifdef USE_TRACKER
-	const char *MplTrackerAddr;
-	int MplTrackerPort;
+	const char *MplTrackerHost;
 #endif
 #ifdef DXX_BUILD_DESCENT_I
 	int EdiNoBm;
