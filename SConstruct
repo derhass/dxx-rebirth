@@ -1193,6 +1193,7 @@ class DXXArchive(DXXCommon):
 'maths/rand.cpp',
 'maths/tables.cpp',
 'maths/vecmat.cpp',
+'misc/curlutil.cpp',
 'misc/error.cpp',
 'misc/hmp.cpp',
 'misc/ignorecase.cpp',
