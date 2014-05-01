@@ -47,3 +47,7 @@ Thumbs.db
 *.mode1v3
 *.pbxuser
 *.perspectivev3
+
+# Vim Swap files #
+##################
+*.swp
