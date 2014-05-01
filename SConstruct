@@ -1406,6 +1406,7 @@ class DXXProgram(DXXCommon):
 'misc/args.cpp',
 'misc/hash.cpp',
 'misc/physfsx.cpp',
+'misc/trackerutil.cpp'
 ]
 ],
 		'transform_target':_apply_target_name,

@@ -55,7 +55,7 @@
 #include "compiler-lengthof.h"
 
 #ifdef USE_TRACKER
-#  include "curlutil.h"
+#  include "trackerutil.h"
 #endif
 
 // Prototypes
@@ -111,6 +111,12 @@ struct _sockaddr GMcast_v6; // same for IPv6-only
 #endif
 
 static fix64 StartAbortMenuTime;
+
+/* Tracker functions */
+static void dxx_tracker_reqgames( Json::Value &data )
+{
+	printf( "Got data: %s\n", data["ip"].asString().c_str() );
+}
 
 /* General UDP functions - START */
 static ssize_t dxx_sendto(int sockfd, const void *msg, int len, unsigned int flags, const struct sockaddr *to, socklen_t tolen)
@@ -574,8 +580,7 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 			net_udp_request_game_info(GMcast_v6, 1);
 #endif
 #ifdef USE_TRACKER
-			printf( "Tracker: ReqGames\n" );
-			// udp_tracker_reqgames();
+			TrackerUtil::ReqGames( dxx_tracker_reqgames );
 #endif
 			break;
 		}
@@ -620,8 +625,7 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 				net_udp_request_game_info(GMcast_v6, 1);
 #endif
 #ifdef USE_TRACKER
-				printf( "Tracker: ReqGames\n" );
-				// udp_tracker_reqgames();
+				TrackerUtil::ReqGames( dxx_tracker_reqgames );
 #endif
 				// All done
 				break;

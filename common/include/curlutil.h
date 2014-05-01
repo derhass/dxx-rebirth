@@ -5,7 +5,6 @@
 #include <curl/curl.h>
 
 // Boom, interaction; callbacks from cURL requests (data, length)
-// XXX I should hand back a json value :V
 typedef void (*dxx_http_callback)(Json::Value&);
 
 namespace CurlUtil

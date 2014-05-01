@@ -84,14 +84,18 @@ void CurlUtil::Get( const std::string &sPath, dxx_http_callback cb )
 		return;
 	}
 
-	// Create our handle
-	dxx_curl_handle handle;
+	// Private handle
+	dxx_curl_handle *pHandle = new dxx_curl_handle;
+	pHandle->cb = cb;
+	pHandle->iPos = 0;
 
 	// Set some options
 	curl_easy_setopt( pCurl, CURLOPT_URL, sPath.c_str() );
 	curl_easy_setopt( pCurl, CURLOPT_HTTPHEADER, g_pHeaders );
 	curl_easy_setopt( pCurl, CURLOPT_WRITEFUNCTION, read_cb );
 	curl_easy_setopt( pCurl, CURLOPT_ACCEPT_ENCODING, "gzip;q=1.0" );
+	curl_easy_setopt( pCurl, CURLOPT_WRITEDATA, pHandle );
+	curl_easy_setopt( pCurl, CURLOPT_PRIVATE, pHandle );
 
 	// Note, I am hosting the tracker for free
 	// I'm not paying extra for the SSL on dxxtracker.reenigne.{net,ca} or tracker.dxx-rebirth.com
