@@ -1148,6 +1148,7 @@ class DXXCommon(LazyObjectConstructor):
 		# Tracker support?
 		if( self.user_settings.use_tracker == 1 ):
 			env.Append( CPPDEFINES = [ 'USE_TRACKER' ] )
+			env.Append( LIBS = [ 'curl' ] )
 
 		# Raspberry Pi?
 		if (self.user_settings.raspberrypi == 1):
