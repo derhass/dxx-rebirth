@@ -204,5 +204,5 @@ void CurlUtil::Tick()
 
 	// Miracle badness?
 	if( iRet != CURLM_OK )
-		printf( "Wut %s\n", curl_multi_strerror( iRet ) );
+		printf( "Error ticking (wat) %s\n", curl_multi_strerror( iRet ) );
 }
