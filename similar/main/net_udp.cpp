@@ -112,12 +112,6 @@ struct _sockaddr GMcast_v6; // same for IPv6-only
 
 static fix64 StartAbortMenuTime;
 
-/* Tracker functions */
-static void dxx_tracker_reqgames( Json::Value &data )
-{
-	printf( "Got data: %s\n", data["ip"].asString().c_str() );
-}
-
 /* General UDP functions - START */
 static ssize_t dxx_sendto(int sockfd, const void *msg, int len, unsigned int flags, const struct sockaddr *to, socklen_t tolen)
 {
@@ -376,6 +370,118 @@ static int udp_receive_packet(int socknum, ubyte *text, int len, struct _sockadd
 	return msglen;
 }
 /* General UDP functions - END */
+
+/* Tracker callback functions */
+static void dxx_tracker_reqgames( Json::Value &data )
+{
+	// Let's iterate through some games
+	printf( "Found %i games\n", data.size() );
+	for( unsigned i = 0 ; i < data.size() ; i++ )
+	{
+		// Get this info
+		std::string sHost = data[i]["host"].asString();
+		unsigned iPort = data[i]["port"].asInt();
+
+		std::string sGameName = data[i]["info"]["name"].asString();
+		std::string sMissionTitle = data[i]["info"]["mission_title"].asString();
+		std::string sMissionName = data[i]["info"]["mission_name"].asString();
+
+		// Fill in some descent info
+		struct _sockaddr addr;
+		memset( &addr, 0, sizeof( addr ) );
+
+		// Fill it in
+		if( udp_dns_filladdr( sHost.c_str(), iPort, &addr ) < 0 )
+			continue;
+
+		// Process it
+		UDP_netgame_info_lite recv_game;
+		memset( &recv_game, 0, sizeof( recv_game ) );
+
+		// Set the net info
+		recv_game.game_addr = addr;
+
+		// The tracker returns only what we asked for (i.e. this version)
+		recv_game.program_iver[0] = data[i]["major"].asInt();
+		recv_game.program_iver[1] = data[i]["minor"].asInt();
+		recv_game.program_iver[2] = data[i]["micro"].asInt();
+
+		// General info
+		recv_game.GameID = data[i]["game_random_id"].asInt();
+		memcpy( &recv_game.game_name, sGameName.c_str(), sGameName.length() );
+		memcpy( &recv_game.mission_title, sMissionTitle.c_str(), sMissionTitle.length() );
+		memcpy( &recv_game.mission_name, sMissionName.c_str(), sMissionName.length() );
+		recv_game.levelnum = data[i]["info"]["level_num"].asInt();
+		recv_game.gamemode = data[i]["info"]["mode"]["id"].asInt();
+		recv_game.RefusePlayers = data[i]["info"]["refuse"].asBool() ? 1 : 0;
+		recv_game.difficulty = data[i]["info"]["difficulty"]["id"].asInt();
+		recv_game.game_status = data[i]["info"]["status"]["id"].asInt();
+		recv_game.numconnected = data[i]["info"]["players_current"].asInt();
+		recv_game.max_numplayers = data[i]["info"]["players_max"].asInt();
+
+		packed_game_flags p;
+		p.value = data[i]["info"]["flags"].asInt();
+		recv_game.game_flag = unpack_game_flags( &p );
+
+		// Num active udp changed, at least one
+		num_active_udp_changed = 1;
+
+		// Find this game
+		int j = 0;
+		for( j = 0 ; j < num_active_udp_games ; j++ )
+			if( !d_stricmp( Active_udp_games[j].game_name, recv_game.game_name ) && Active_udp_games[j].GameID == recv_game.GameID )
+				break;
+
+		// Sanity
+		if( j == UDP_MAX_NETGAMES )
+			continue;
+
+		// Set it up
+		Active_udp_games[j] = recv_game;
+
+#if defined( DXX_BUILD_DESCENT_II )
+		if( HoardEquipped() && recv_game.game_flag.hoard )
+		{
+			Active_udp_games[j].gamemode = NETGAME_HOARD;
+			Active_udp_games[j].game_status = NETSTAT_PLAYING;
+
+			if( Active_udp_games[j].game_flag.team_hoard )
+				Active_udp_games[j].gamemode = NETGAME_TEAM_HOARD;
+
+			if( Active_udp_games[j].game_flag.endlevel )
+				Active_udp_games[j].game_status = NETSTAT_ENDLEVEL;
+
+			if( Active_udp_games[j].game_flag.forming )
+				Active_udp_games[j].game_status = NETSTAT_STARTING;
+		}
+#endif
+
+		if( j == num_active_udp_games )
+			num_active_udp_games++;
+
+		// Have to delete this game? This should never happen
+		if( Active_udp_games[j].numconnected == 0 )
+		{
+			// Delete it
+			for( int k = 1 ; k < num_active_udp_games - 1 ; k++ )
+				Active_udp_games[k] = Active_udp_games[k + 1];
+			num_active_udp_games--;
+		}
+	}
+}
+
+static void dxx_tracker_register( Json::Value &data )
+{
+	// See if we got something
+	if( data.isMember( "error" ) )
+	{
+		if( data["error"].isInt() )
+			printf( "err %i\n", data["error"].asInt() );
+		else
+			printf( "err %s\n", data["error"].asString().c_str() );
+	}
+}
+/* Tracker callbacks finish */
 
 struct direct_join
 {
@@ -643,7 +749,6 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 				break;
 			}
 #ifdef USE_TRACKER
-			/*
 			if( key == KEY_F6 )
 			{
 				// Zero the list
@@ -652,12 +757,11 @@ static int net_udp_list_join_poll( newmenu *menu, d_event *event, direct_join *d
 				num_active_udp_games = 0;
 				
 				// Request from the tracker
-				udp_tracker_reqgames();
+				TrackerUtil::ReqGames( dxx_tracker_reqgames );
 				
 				// Break off
 				break;
 			}
-			*/
 #endif
 			if (key == KEY_ESC)
 			{
@@ -3489,8 +3593,19 @@ static net_udp_select_players(void)
 GetPlayersAgain:
 #ifdef USE_TRACKER
 	if( Netgame.Tracker )
-		printf( "Tracker: Register\n" );
-		// udp_tracker_register();
+	{
+		// Build data to register with
+		Json::Value data;
+		data["v_major"] = DXX_VERSION_MAJORi;
+		data["v_minor"] = DXX_VERSION_MINORi;
+		data["v_micro"] = DXX_VERSION_MICROi;
+		data["v_game"] = DXX_NAME_NUMBER;
+		data["port"] = UDP_MyPort;
+		data["id"] = Netgame.protocol.udp.GameID;
+
+		// And try registering
+		TrackerUtil::RegisterGame( data, dxx_tracker_register );
+	}
 #endif
 
 	j=newmenu_do1( NULL, title, MAX_PLAYERS+4, m, net_udp_start_poll, spd, 1 );
