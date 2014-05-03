@@ -39,4 +39,31 @@ void TrackerUtil::RegisterGame( Json::Value &data, dxx_http_callback cb )
 	CurlUtil::Post( sUrl, data, cb );
 }
 
+void TrackerUtil::UnregisterGame( Json::Value &data, dxx_http_callback cb )
+{
+	// The URL to hit
+	char sUrl[256];
+	sprintf( sUrl, "http://%s/api/%s/games/delete",
+		GameArg.MplTrackerHost,
+		DXX_TRACKER_API_VERSION
+	);
+
+	// Pass it off
+	CurlUtil::Post( sUrl, data, cb );
+}
+
+void TrackerUtil::CheckIfVerified( Json::Value &data, dxx_http_callback cb )
+{
+	// The URL to hit
+	char sUrl[256];
+	sprintf( sUrl, "http://%s/api/%s/games/%u",
+		GameArg.MplTrackerHost,
+		DXX_TRACKER_API_VERSION,
+		data["id"].asInt()
+	);
+
+	// Pass it off
+	CurlUtil::Get( sUrl, cb );
+}
+
 #endif // USE_TRACKER

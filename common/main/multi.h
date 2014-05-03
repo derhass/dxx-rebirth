@@ -532,6 +532,7 @@ struct netgame_info
 	ubyte						NoFriendlyFire;
 #ifdef USE_TRACKER
 	ubyte						Tracker;
+	int						TrackerGameId;
 #endif
 } __pack__;
 

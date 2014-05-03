@@ -110,6 +110,10 @@ struct _sockaddr GBcast; // global Broadcast address clients and hosts will use 
 struct _sockaddr GMcast_v6; // same for IPv6-only
 #endif
 
+#ifdef USE_TRACKER
+int iTrackerVerified = 0;
+#endif
+
 static fix64 StartAbortMenuTime;
 
 /* General UDP functions - START */
@@ -375,7 +379,6 @@ static int udp_receive_packet(int socknum, ubyte *text, int len, struct _sockadd
 static void dxx_tracker_reqgames( Json::Value &data )
 {
 	// Let's iterate through some games
-	printf( "Found %i games\n", data.size() );
 	for( unsigned i = 0 ; i < data.size() ; i++ )
 	{
 		// Get this info
@@ -473,13 +476,43 @@ static void dxx_tracker_reqgames( Json::Value &data )
 static void dxx_tracker_register( Json::Value &data )
 {
 	// See if we got something
+	if( data.isMember( "error" ) && data["error"].isInt() && data["error"].asInt() != 0 )
+	{
+		printf( "err %i\n", data["error"].asInt() );
+		return;
+	}
+
+	// Otherwise, this is good
+	Netgame.TrackerGameId = data["id"].asInt();
+
+	// Also, we're not verified
+	iTrackerVerified = 0;
+}
+
+static void dxx_tracker_unregister( Json::Value &data )
+{
+	// See if we got something
 	if( data.isMember( "error" ) )
 	{
-		if( data["error"].isInt() )
+		if( data["error"].isInt() && data["error"].asInt() != 0 )
 			printf( "err %i\n", data["error"].asInt() );
 		else
 			printf( "err %s\n", data["error"].asString().c_str() );
 	}
+}
+
+static void dxx_tracker_verify( Json::Value &data )
+{
+	// Error check
+	if( data.isMember( "error" ) && data["error"].isInt() && data["error"].asInt() != 0 )
+	{
+		printf( "err %i\n", data["error"].asInt() );
+		return;
+	}
+
+	// Otherwise, we're going to check our validity
+	if( data["tracker_status"] == 1 )
+		iTrackerVerified = 1;
 }
 /* Tracker callbacks finish */
 
@@ -3618,8 +3651,13 @@ GetPlayersAgain:
 		// Dump all players and go back to menu mode
 #ifdef USE_TRACKER
 		if( Netgame.Tracker )
-			printf( "Tracker: Unregister\n" );
-		//	udp_tracker_unregister();
+		{
+			Json::Value data;
+			data["id"] = Netgame.TrackerGameId;
+
+			// Send it out
+			TrackerUtil::UnregisterGame( data, dxx_tracker_unregister );
+		}
 #endif
 
 abort:
@@ -3998,8 +4036,13 @@ void net_udp_leave_game()
 		N_players=nsave;
 #ifdef USE_TRACKER
 		if( Netgame.Tracker )
-			printf( "Tracker: Unregister\n" );
-		//	udp_tracker_unregister();
+		{
+			Json::Value data;
+			data["id"] = Netgame.TrackerGameId;
+
+			// Send it out
+			TrackerUtil::UnregisterGame( data, dxx_tracker_unregister );
+		}
 #endif
 	}
 
@@ -4156,8 +4199,6 @@ void net_udp_do_frame(int force, int listen)
 	}
 
 #ifdef USE_TRACKER
-	printf( "Tracker: Update the tracker\n" );
-	/*
 	// If we use the tracker, tell the tracker about us every 10 seconds
 	if( Netgame.Tracker )
 	{
@@ -4176,6 +4217,11 @@ void net_udp_do_frame(int force, int listen)
 			// Update it
 			iLastQuery = iNow;
 			iAttempts++;
+
+			// Check again
+			Json::Value data;
+			data["id"] = Netgame.TrackerGameId;
+			TrackerUtil::CheckIfVerified( data, dxx_tracker_verify );
 		}
 		
 		// Have we had all our attempts?
@@ -4189,10 +4235,9 @@ void net_udp_do_frame(int force, int listen)
 			iAttempts = 0;
 			
 			// Warn
-			nm_messagebox( TXT_WARNING, 1, TXT_OK, "No response from tracker!\nPossible causes:\nTracker is down\nYour port is likely not open!\n\nTracker: %s\nGame port: %s", GameArg.MplTrackerAddr, UDP_MyPort );
+			nm_messagebox( TXT_WARNING, 1, TXT_OK, "No response from tracker!\nPossible causes:\nTracker is down\nYour port is likely not open!\n\nTracker: %s\nGame port: %s", GameArg.MplTrackerHost, UDP_MyPort );
 		}
 	}
-	*/
 #endif
 
 	net_udp_ping_frame(time);
