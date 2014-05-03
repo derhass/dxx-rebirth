@@ -10,6 +10,12 @@
 #define DXX_VERSION_MINOR __stringize(DXX_VERSION_MINORi)
 #define DXX_VERSION_MICRO __stringize(DXX_VERSION_MICROi)
 
+#if defined(DXX_BUILD_DESCENT_I)
+#define DXX_NAME_NUMBER	"1"
+#elif defined(DXX_BUILD_DESCENT_II)
+#define DXX_NAME_NUMBER	"2"
+#endif
+
 #define VERSION DXX_VERSION_MAJOR "." DXX_VERSION_MINOR "." DXX_VERSION_MICRO
 #if defined(DXX_BUILD_DESCENT_I)
 #define BASED_VERSION "Registered v1.5 Jan 5, 1996"
