@@ -5,6 +5,8 @@
 #include <SDL/SDL.h>
 #include <GL/gl.h>
 
+#include "console.h"
+
 #define DEBUGTIMERS_FRAMES 10
 
 #ifndef APIENTRY
@@ -89,13 +91,17 @@ static void bench_finish(benchpoint_t *b)
 		b[BENCHPOINT_END].ts[TIMESTAMP_CPU] - b[BENCHPOINT_START].ts[TIMESTAMP_CPU]);
 	for (i=0; i<(int)BENCHPOINT_COUNT; i++) {
 		GLuint64 glts;
-		glGetQueryObjectui64vFunc(b[i].gl_query_obj, GL_QUERY_RESULT, &glts);
-		b[i].ts[TIMESTAMP_GL_GPU]=(timestamp_t)(glts/1000);
+		if (b[i].gl_query_obj) {
+			glGetQueryObjectui64vFunc(b[i].gl_query_obj, GL_QUERY_RESULT, &glts);
+			b[i].ts[TIMESTAMP_GL_GPU]=(timestamp_t)(glts/1000);
+		} else {
+			b[i].ts[TIMESTAMP_GL_GPU]=(timestamp_t)0;
+			b[i].ts[TIMESTAMP_GL_CPU]=(timestamp_t)0;
+		}
 	}
 	for (i=1; i<(int)BENCHPOINT_COUNT; i++) {
 		fprintf(debugtimers.f,"\t%lu",
 			b[i].ts[TIMESTAMP_CPU] - b[i-1].ts[TIMESTAMP_CPU]);
-
 	}
 	fprintf(debugtimers.f, "\tGL");
 	for (i=1; i<(int)BENCHPOINT_COUNT; i++) {
@@ -107,9 +113,8 @@ static void bench_finish(benchpoint_t *b)
 	for (i=0; i<(int)BENCHPOINT_COUNT; i++) {
 		fprintf(debugtimers.f,"\t%lu",
 			b[i].ts[TIMESTAMP_GL_GPU] - b[i].ts[TIMESTAMP_GL_CPU]);
-
 	}
-	fprintf(debugtimers.f,"\n");
+	fputc('\n', debugtimers.f);
 }
 
 extern void bench_init(void)
@@ -117,16 +122,26 @@ extern void bench_init(void)
 #ifdef _WIN32
 	LARGE_INTEGER freq;
 #endif
+	int i,j,k;
 
 	debugtimers.frame=0;
 	debugtimers.pos=0;
 
 	debugtimers.f=fopen("./debugtimers.txt","wt");
 
+	con_printf(CON_URGENT,"Enabling DEBUGTIMERS hack\n");
 #ifdef _WIN32
 	QueryPerformanceFrequency(&freq);
 	debugtimers.factor = 1000000.0 / (double)freq.QuadPart;
 #endif
+
+	for (i=0; i<DEBUGTIMERS_FRAMES; i++) {
+		for (j=0; j<BENCHPOINT_COUNT; j++) {
+			for (k=0;k<TIMESTAMP_COUNT; k++) {
+				debugtimers.point[i][j].ts[k]=(timestamp_t)0;
+			}
+		}
+	}
 }
 
 extern void bench_init_gl(void)
@@ -141,13 +156,20 @@ extern void bench_init_gl(void)
 	glGetQueryObjectui64vFunc = (PFNGLGETQUERYOBJECTUI64VPROC)SDL_GL_GetProcAddress("glGetQueryObjectui64v");
 	glGetInteger64vFunc = (PFNGLGETINTEGER64VPROC)SDL_GL_GetProcAddress("glGetInteger64v");
 
-	glGenQueriesARBFunc(DEBUGTIMERS_FRAMES * BENCHPOINT_COUNT, ids);
+	if (glGenQueriesARBFunc && glQueryCounterFunc && glGetQueryObjectui64vFunc && glGetInteger64vFunc) {
+		con_printf(CON_URGENT,"DEBUGTIMERS: GL timers available :)\n");
+		glGenQueriesARBFunc(DEBUGTIMERS_FRAMES * BENCHPOINT_COUNT, ids);
+	} else {
+		con_printf(CON_URGENT,"DEBUGTIMERS: GL timers not available :(\n");
+		for (i=0; i<DEBUGTIMERS_FRAMES*BENCHPOINT_COUNT ; i++) {
+			ids[i]=0;
+		}
+	}
 	for (i=0; i<DEBUGTIMERS_FRAMES; i++) {
 		for (j=0; j<BENCHPOINT_COUNT; j++) {
 			debugtimers.point[i][j].gl_query_obj=ids[i*BENCHPOINT_COUNT+j];
 		}
 	}
-
 }
 	
 extern void bench_start_frame(void)
@@ -174,9 +196,11 @@ extern void bench_point(benchpoint_desc_t bp)
 	benchpoint_t *b=& debugtimers.point[debugtimers.pos][bp];
 	b->ts[TIMESTAMP_CPU]=getcurtime();
 
-	glGetInteger64vFunc(GL_TIMESTAMP, &glts);
-	b->ts[TIMESTAMP_GL_CPU]=(timestamp_t)(glts/1000);
+	if (b->gl_query_obj) {
+		glGetInteger64vFunc(GL_TIMESTAMP, &glts);
+		b->ts[TIMESTAMP_GL_CPU]=(timestamp_t)(glts/1000);
 	
-	glQueryCounterFunc(b->gl_query_obj, GL_TIMESTAMP);
+		glQueryCounterFunc(b->gl_query_obj, GL_TIMESTAMP);
+	}
 }
 
