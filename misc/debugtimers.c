@@ -3,6 +3,9 @@
 #include <time.h>
 #include <stdio.h>
 #include <SDL/SDL.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <GL/gl.h>
 
 #include "console.h"
@@ -70,9 +73,8 @@ static timestamp_t getcurtime(void)
 #ifdef _WIN32
 	/* Windows, Query Performance Counter, CPU clock precision */
 	LARGE_INTEGER cnt;
-	CRASSERT(initialized);
 	QueryPerformanceCounter(&cnt);
-	ts=(timestamp_t)(((double)cnt.QuadPart)*factor);
+	ts=(timestamp_t)(((double)cnt.QuadPart)*debugtimers.factor);
 #else
 	/* Unix with new Posix timers, nanosecond precision */
 	struct timespec tsp;
