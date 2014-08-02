@@ -51,6 +51,7 @@
 #include "playsave.h"
 #include "vers_id.h"
 #include "game.h"
+#include "debugtimers.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <OpenGL/glu.h>
@@ -646,6 +647,7 @@ int gr_set_mode(u_int32_t mode)
 
 	ogl_init_window(w,h);//platform specific code
 	ogl_get_verinfo();
+	BENCH_INIT_GL();
 	OGL_VIEWPORT(0,0,w,h);
 	ogl_init_state();
 	gamefont_choose_game_font(w,h);

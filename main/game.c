@@ -96,6 +96,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "movie.h"
 #include "event.h"
 #include "window.h"
+#include "debugtimers.h"
 
 #ifdef EDITOR
 #include "editor/editor.h"
@@ -1120,7 +1121,12 @@ int game_handler(window *wind, d_event *event, void *data)
 			if (!time_paused)
 			{
 				calc_frame_time();
+				BENCH_POINT(BENCHPOINT_CALC_TIME);
 				GameProcessFrame();
+				BENCH_POINT(BENCHPOINT_PROCESS);
+			} else {
+				BENCH_POINT(BENCHPOINT_CALC_TIME);
+				BENCH_POINT(BENCHPOINT_PROCESS);
 			}
 
 			if (!Automap_active)		// efficiency hack

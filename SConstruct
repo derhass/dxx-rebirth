@@ -513,6 +513,7 @@ class D2XProgram(DXXProgram):
 'maths/vecmat.c',
 'mem/mem.c',
 'misc/args.c',
+'misc/debugtimers.c',
 'misc/error.c',
 'misc/hash.c',
 'misc/hmp.c',
