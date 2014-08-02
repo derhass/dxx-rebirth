@@ -72,6 +72,7 @@ char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE CORPORAT
 #include "../texmap/scanline.h" //for select_tmap -MM
 #include "event.h"
 #include "rbaudio.h"
+#include "debugtimers.h"
 #ifndef __LINUX__
 #include "messagebox.h"
 #endif
@@ -297,6 +298,7 @@ int main(int argc, char *argv[])
 #endif
 	PHYSFSX_init(argc, argv);
 	con_init();  // Initialise the console
+	BENCH_INIT();
 
 	setbuf(stdout, NULL); // unbuffered output via printf
 #ifdef _WIN32

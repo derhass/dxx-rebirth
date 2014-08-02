@@ -51,6 +51,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "mission.h"
 #include "gameseq.h"
 #include "args.h"
+#include "debugtimers.h"
 
 #ifdef OGL
 #include "ogl_init.h"
@@ -354,14 +355,17 @@ void game_render_frame_mono(int flip)
 	gr_set_current_canvas(&Screen_3d_window);
 	
 	render_frame(0);
+	BENCH_POINT(BENCHPOINT_RENDER);
 
 	update_cockpits();
+	BENCH_POINT(BENCHPOINT_COCKPIT);
 
 	if (Newdemo_state == ND_STATE_PLAYBACK)
 		Game_mode = Newdemo_game_mode;
 
 	if (PlayerCfg.CockpitMode[1]==CM_FULL_COCKPIT || PlayerCfg.CockpitMode[1]==CM_STATUS_BAR)
 		render_gauges();
+	BENCH_POINT(BENCHPOINT_GAUGES);
 
 	if (Newdemo_state == ND_STATE_PLAYBACK)
 		Game_mode = GM_NORMAL;
@@ -373,6 +377,7 @@ void game_render_frame_mono(int flip)
 	if (netplayerinfo_on && Game_mode & GM_MULTI)
 		show_netplayerinfo();
 #endif
+	BENCH_POINT(BENCHPOINT_HUD);
 }
 
 void toggle_cockpit()
