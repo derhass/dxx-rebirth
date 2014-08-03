@@ -9,6 +9,8 @@
 #include <GL/gl.h>
 
 #include "console.h"
+#include "maths.h"
+#include "game.h" // for FrameTime
 
 #define DEBUGTIMERS_FRAMES 10
 
@@ -88,8 +90,20 @@ static timestamp_t getcurtime(void)
 static void bench_finish(benchpoint_t *b)
 {
 	int i;
+	benchpoint_t *bnext;
+	unsigned int pnext;
+	timestamp_t ft;
 
-	fprintf(debugtimers.f,"%u\t%lu",debugtimers.frame - DEBUGTIMERS_FRAMES,
+	pnext=debugtimers.pos+1;
+	if (pnext >= DEBUGTIMERS_FRAMES) {
+		pnext-=DEBUGTIMERS_FRAMES;
+	}
+	bnext=&debugtimers.point[pnext][0];
+	ft=(timestamp_t)( f2fl(FrameTime) * 1000000.0f);
+
+	fprintf(debugtimers.f,"%u\t%lu\t%lu\t%lu",debugtimers.frame - DEBUGTIMERS_FRAMES,
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_CPU]-b[BENCHPOINT_START].ts[TIMESTAMP_CPU],
+		ft,
 		b[BENCHPOINT_END].ts[TIMESTAMP_CPU] - b[BENCHPOINT_START].ts[TIMESTAMP_CPU]);
 	for (i=0; i<(int)BENCHPOINT_COUNT; i++) {
 		GLuint64 glts;
@@ -105,13 +119,16 @@ static void bench_finish(benchpoint_t *b)
 		fprintf(debugtimers.f,"\t%lu",
 			b[i].ts[TIMESTAMP_CPU] - b[i-1].ts[TIMESTAMP_CPU]);
 	}
-	fprintf(debugtimers.f, "\tGL");
+	fprintf(debugtimers.f, "\tGL\t%lu",
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]-b[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]);
 	for (i=1; i<(int)BENCHPOINT_COUNT; i++) {
 		fprintf(debugtimers.f,"\t%lu",
 			b[i].ts[TIMESTAMP_GL_GPU] - b[i-1].ts[TIMESTAMP_GL_GPU]);
 
 	}
-	fprintf(debugtimers.f, "\tlat");
+	fprintf(debugtimers.f, "\tlat\t%lu",
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU]-b[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU]);
+
 	for (i=0; i<(int)BENCHPOINT_COUNT; i++) {
 		fprintf(debugtimers.f,"\t%lu",
 			b[i].ts[TIMESTAMP_GL_GPU] - b[i].ts[TIMESTAMP_GL_CPU]);
