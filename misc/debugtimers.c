@@ -124,7 +124,7 @@ bench_flush(void)
 	}
 
 	if (hdr) {
-		fprintf(debugtimers.f,"DEBUGTIMERS-V2, factor: %f\n",debugtimers.factor);
+		fprintf(debugtimers.f,"DEBUGTIMERS-V2, ffreq: %f\n",1.0/debugtimers.factor);
 		fprintf(debugtimers.f, "frame\tFT\ttotLO");
 		for (j=0; j<3; j++) {
 			for (int i=0; i<BENCHPOINT_COUNT; i++) {
@@ -175,8 +175,13 @@ static void bench_finish(benchpoint_t *b)
 		}
 	}
 	/* also collect the first one of the next frame */
-	glGetQueryObjectui64vFunc(bnext[BENCHPOINT_START].gl_query_obj, GL_QUERY_RESULT, &glts);
-	bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]=(timestamp_t)(glts/1000);
+	if (bnext[BENCHPOINT_START].gl_query_obj) {
+		glGetQueryObjectui64vFunc(bnext[BENCHPOINT_START].gl_query_obj, GL_QUERY_RESULT, &glts);
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]=(timestamp_t)(glts/1000);
+	} else {
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]=(timestamp_t)0;
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU]=(timestamp_t)0;
+	}
 
 	/* dump the times to the buffer */
 	if (debugtimers.buffer == NULL) {
