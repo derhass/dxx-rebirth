@@ -954,6 +954,7 @@ int game_handler(window *wind, d_event *event, void *data)
 
 			event_toggle_focus(0);
 			key_toggle_repeat(1);
+			BENCH_FLUSH();
 			break;
 
 		case EVENT_JOYSTICK_BUTTON_UP:
@@ -991,6 +992,7 @@ int game_handler(window *wind, d_event *event, void *data)
 
 		case EVENT_WINDOW_CLOSE:
 			digi_stop_digi_sounds();
+			BENCH_FLUSH();
 
 			if ( (Newdemo_state == ND_STATE_RECORDING) || (Newdemo_state == ND_STATE_PAUSED) )
 				newdemo_stop_recording();
@@ -1016,6 +1018,7 @@ int game_handler(window *wind, d_event *event, void *data)
 			break;
 
 		case EVENT_WINDOW_CLOSED:
+			BENCH_FLUSH();
 			longjmp(LeaveEvents, 0);
 			break;
 
