@@ -44,7 +44,6 @@ static PFNGLQUERYCOUNTERPROC glQueryCounterFunc = NULL;
 static PFNGLGETQUERYOBJECTUI64VPROC glGetQueryObjectui64vFunc = NULL;
 static PFNGLGETINTEGER64VPROC glGetInteger64vFunc = NULL;
 
-
 typedef unsigned long timestamp_t; /* using microseconds */
 
 typedef enum {
@@ -59,15 +58,41 @@ typedef struct {
 	GLuint gl_query_obj;
 } benchpoint_t;
 
+#define DEBUGTIMERS_FRAMESTAT_GBL 3
+#define DEBUGTIMERS_FRAMESTAT_CPU (BENCHPOINT_COUNT)
+#define DEBUGTIMERS_FRAMESTAT_GL  (BENCHPOINT_COUNT)
+#define DEBUGTIMERS_FRAMESTAT_LAT (BENCHPOINT_COUNT)
+#define DEBUGTIMERS_FRAMESTAT_TOTAL (DEBUGTIMERS_FRAMESTAT_GBL + DEBUGTIMERS_FRAMESTAT_CPU + DEBUGTIMERS_FRAMESTAT_GL + DEBUGTIMERS_FRAMESTAT_LAT)
+typedef struct {
+	timestamp_t ts[DEBUGTIMERS_FRAMESTAT_TOTAL];
+} framestat_t;
+
 typedef struct {
 	benchpoint_t point[DEBUGTIMERS_FRAMES][BENCHPOINT_COUNT];
 	unsigned int frame;
 	unsigned int pos;
 	double factor;
 	FILE *f;
+	framestat_t *buffer;
+	unsigned int buf_size;
+	unsigned int buf_pos;
 } debugtimers_t;
 
 static debugtimers_t debugtimers;
+
+static const char *point_name[BENCHPOINT_COUNT]={
+	"next",
+	"tupd",
+	"evnt",
+	"calt",
+	"proc",
+	"rndM",
+	"rndC",
+	"rndG",
+	"rndH",
+	"endf",
+	"flip"
+};
 
 static timestamp_t getcurtime(void)
 {
@@ -87,12 +112,50 @@ static timestamp_t getcurtime(void)
 	return ts;
 }
 
+extern void
+bench_flush(void)
+{
+	unsigned int j;
+	static int hdr=1;
+	int i;
+
+	if (!debugtimers.f || !debugtimers.buffer) {
+		return;
+	}
+
+	if (hdr) {
+		fprintf(debugtimers.f,"DEBUGTIMERS-V2, factor: %f\n",debugtimers.factor);
+		fprintf(debugtimers.f, "frame\tFT\ttotLO");
+		for (j=0; j<3; j++) {
+			for (int i=0; i<BENCHPOINT_COUNT; i++) {
+				char xhdr[3]={'C','G','L'};
+				fprintf(debugtimers.f, "\t%c%s",xhdr[j],point_name[i]);
+			}
+		}
+		fputc('\n', debugtimers.f);
+		hdr=0;
+	}
+
+	con_printf(CON_URGENT,"DEBUGTIMERS: writing stats for %u frames\n",debugtimers.buf_pos);
+	for (j=0; j<debugtimers.buf_pos; j++) {
+		const framestat_t *fs=&debugtimers.buffer[j];
+
+		for (i=0; i< DEBUGTIMERS_FRAMESTAT_TOTAL; i++) {
+			fprintf(debugtimers.f, "%lu\t",fs->ts[i]);
+		}
+		fputc('\n', debugtimers.f);
+	}
+	debugtimers.buf_pos=0;
+}
+
 static void bench_finish(benchpoint_t *b)
 {
 	int i;
 	benchpoint_t *bnext;
 	unsigned int pnext;
 	timestamp_t ft;
+	framestat_t *fs;
+	GLuint64 glts;
 
 	pnext=debugtimers.pos+1;
 	if (pnext >= DEBUGTIMERS_FRAMES) {
@@ -101,12 +164,8 @@ static void bench_finish(benchpoint_t *b)
 	bnext=&debugtimers.point[pnext][0];
 	ft=(timestamp_t)( f2fl(FrameTime) * 1000000.0f);
 
-	fprintf(debugtimers.f,"%u\t%lu\t%lu\t%lu",debugtimers.frame - DEBUGTIMERS_FRAMES,
-		bnext[BENCHPOINT_START].ts[TIMESTAMP_CPU]-b[BENCHPOINT_START].ts[TIMESTAMP_CPU],
-		ft,
-		b[BENCHPOINT_END].ts[TIMESTAMP_CPU] - b[BENCHPOINT_START].ts[TIMESTAMP_CPU]);
+	/* collect the GL timer query */
 	for (i=0; i<(int)BENCHPOINT_COUNT; i++) {
-		GLuint64 glts;
 		if (b[i].gl_query_obj) {
 			glGetQueryObjectui64vFunc(b[i].gl_query_obj, GL_QUERY_RESULT, &glts);
 			b[i].ts[TIMESTAMP_GL_GPU]=(timestamp_t)(glts/1000);
@@ -115,25 +174,44 @@ static void bench_finish(benchpoint_t *b)
 			b[i].ts[TIMESTAMP_GL_CPU]=(timestamp_t)0;
 		}
 	}
-	for (i=1; i<(int)BENCHPOINT_COUNT; i++) {
-		fprintf(debugtimers.f,"\t%lu",
-			b[i].ts[TIMESTAMP_CPU] - b[i-1].ts[TIMESTAMP_CPU]);
-	}
-	fprintf(debugtimers.f, "\tGL\t%lu",
-		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]-b[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]);
-	for (i=1; i<(int)BENCHPOINT_COUNT; i++) {
-		fprintf(debugtimers.f,"\t%lu",
-			b[i].ts[TIMESTAMP_GL_GPU] - b[i-1].ts[TIMESTAMP_GL_GPU]);
+	/* also collect the first one of the next frame */
+	glGetQueryObjectui64vFunc(bnext[BENCHPOINT_START].gl_query_obj, GL_QUERY_RESULT, &glts);
+	bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]=(timestamp_t)(glts/1000);
 
+	/* dump the times to the buffer */
+	if (debugtimers.buffer == NULL) {
+		return;
 	}
-	fprintf(debugtimers.f, "\tlat\t%lu",
-		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU]-b[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU]);
+	fs=&debugtimers.buffer[debugtimers.buf_pos];
 
-	for (i=0; i<(int)BENCHPOINT_COUNT; i++) {
-		fprintf(debugtimers.f,"\t%lu",
-			b[i].ts[TIMESTAMP_GL_GPU] - b[i].ts[TIMESTAMP_GL_CPU]);
+	/* GBL PART */
+	fs->ts[0]=(timestamp_t) (debugtimers.frame - DEBUGTIMERS_FRAMES);
+	fs->ts[1]=ft;
+	fs->ts[2]=b[BENCHPOINT_END].ts[TIMESTAMP_CPU] - b[BENCHPOINT_START].ts[TIMESTAMP_CPU];
+
+	/* headers for each part: the offset to the next frame as global reference */
+	fs->ts[DEBUGTIMERS_FRAMESTAT_GBL] =
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_CPU]-b[BENCHPOINT_START].ts[TIMESTAMP_CPU];
+
+	fs->ts[DEBUGTIMERS_FRAMESTAT_GBL + DEBUGTIMERS_FRAMESTAT_CPU] =
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU]-b[BENCHPOINT_START].ts[TIMESTAMP_GL_GPU];
+
+	fs->ts[DEBUGTIMERS_FRAMESTAT_GBL + DEBUGTIMERS_FRAMESTAT_CPU + DEBUGTIMERS_FRAMESTAT_GL] =
+		bnext[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU]-b[BENCHPOINT_START].ts[TIMESTAMP_GL_CPU];
+
+	/* the idividual values per part */
+	for (i=1; i<(int)BENCHPOINT_COUNT; i++) {
+		fs->ts[DEBUGTIMERS_FRAMESTAT_GBL + i ] = b[i].ts[TIMESTAMP_CPU] - b[i-1].ts[TIMESTAMP_CPU];
+		fs->ts[DEBUGTIMERS_FRAMESTAT_GBL + DEBUGTIMERS_FRAMESTAT_CPU + i] =
+		       	b[i].ts[TIMESTAMP_GL_CPU] - b[i-1].ts[TIMESTAMP_GL_CPU];
+		fs->ts[DEBUGTIMERS_FRAMESTAT_GBL + DEBUGTIMERS_FRAMESTAT_CPU + DEBUGTIMERS_FRAMESTAT_GL + i] =
+			b[i].ts[TIMESTAMP_GL_GPU] - b[i].ts[TIMESTAMP_GL_CPU];
 	}
-	fputc('\n', debugtimers.f);
+
+	if (++debugtimers.buf_pos >= debugtimers.buf_size) {
+		/* dump it to the file */
+		bench_flush();
+	}
 }
 
 extern void bench_init(void)
@@ -149,6 +227,7 @@ extern void bench_init(void)
 	debugtimers.f=fopen("./debugtimers.txt","wt");
 
 	con_printf(CON_URGENT,"Enabling DEBUGTIMERS hack\n");
+	debugtimers.factor = -1.0;
 #ifdef _WIN32
 	QueryPerformanceFrequency(&freq);
 	debugtimers.factor = 1000000.0 / (double)freq.QuadPart;
@@ -161,6 +240,13 @@ extern void bench_init(void)
 			}
 		}
 	}
+
+	debugtimers.buf_size=10000;
+	debugtimers.buffer=malloc(sizeof(*debugtimers.buffer) * debugtimers.buf_size);
+	con_printf(CON_URGENT,"DEBUGTIMERS: blocksize: %u, memory: %.2fkB\n",
+		debugtimers.buf_size,
+		(float)(sizeof(*debugtimers.buffer) * debugtimers.buf_size)/1024.0f);
+	debugtimers.buf_pos=0;
 }
 
 extern void bench_init_gl(void)
@@ -189,6 +275,15 @@ extern void bench_init_gl(void)
 			debugtimers.point[i][j].gl_query_obj=ids[i*BENCHPOINT_COUNT+j];
 		}
 	}
+}
+
+extern void bench_close(void)
+{
+	bench_flush();
+	if (debugtimers.f) {
+		fclose(debugtimers.f);
+	}
+	free(debugtimers.buffer);
 }
 	
 extern void bench_start_frame(void)

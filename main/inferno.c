@@ -495,6 +495,7 @@ int main(int argc, char *argv[])
 	newmenu_free_background();
 	free_mission();
 	PHYSFSX_removeArchiveContent();
+	BENCH_CLOSE();
 
 	return(0);		//presumably successful exit
 }

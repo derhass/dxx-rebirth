@@ -18,6 +18,8 @@ typedef enum {
 
 extern void bench_init(void);
 extern void bench_init_gl(void);
+extern void bench_close(void);
+extern void bench_flush(void);
 extern void bench_start_frame(void);
 extern void bench_end_frame(void);
 extern void bench_point(benchpoint_desc_t bp);
@@ -28,6 +30,8 @@ extern void bench_point(benchpoint_desc_t bp);
 
 #define BENCH_INIT(x) bench_init()
 #define BENCH_INIT_GL(x) bench_init_gl()
+#define BENCH_CLOSE(x) bench_close()
+#define BENCH_FLUSH(x) bench_flush()
 #define BENCH_START_FRAME(x) bench_start_frame()
 #define BENCH_END_FRAME(x) bench_end_frame()
 #define BENCH_POINT(x) bench_point(x)
@@ -36,6 +40,8 @@ extern void bench_point(benchpoint_desc_t bp);
 
 #define BENCH_INIT(x) ((void)0)
 #define BENCH_INIT_GL(x) ((void)0)
+#define BENCH_CLOSE(x) ((void)0)
+#define BENCH_FLUSH(x) ((void)0))
 #define BENCH_START_FRAME(x) ((void)0)
 #define BENCH_END_FRAME(x) ((void)0)
 #define BENCH_POINT(x) ((void)0)
