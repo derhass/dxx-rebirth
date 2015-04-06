@@ -113,15 +113,18 @@ extern void
 bench_flush()
 {
 	unsigned int j;
-	static int hdr=1;
 	int i;
 
-	if (!debugtimers.f) {
+	if (!debugtimers.f || !debugtimers.enabled) {
 		return;
 	}
 
-	if (hdr) {
-		PHYSFSX_printf(debugtimers.f,"DEBUGTIMERS-V2, ffreq: %f\n",1.0/debugtimers.factor);
+	if (debugtimers.enabled < 2) {
+		PHYSFSX_printf(debugtimers.f,"DEBUGTIMERS-V3, ffreq: %f, Points: %d, GL Delay: %d\n",
+				1.0/debugtimers.factor,
+				BENCHPOINT_COUNT,
+				DEBUGTIMERS_FRAMES);
+				
 		PHYSFSX_printf(debugtimers.f, "frame\tFT\ttotLO");
 		for (j=0; j<3; j++) {
 			for (int i=0; i<BENCHPOINT_COUNT; i++) {
@@ -130,7 +133,7 @@ bench_flush()
 			}
 		}
 		PHYSFSX_puts(debugtimers.f,"\n");
-		hdr=0;
+		debugtimers.enabled=2;
 	}
 
 	con_printf(CON_VERBOSE,"DEBUGTIMERS: writing stats for %u frames",debugtimers.buf_pos);
