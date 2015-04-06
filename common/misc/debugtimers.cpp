@@ -19,11 +19,12 @@
 #include "debugtimers.h"
 
 #include <time.h>
-#include <stdio.h>
 #include <SDL/SDL.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+#include "physfsx.h"
 
 #ifdef OGL
 #include "ogl_extensions.h"
@@ -66,7 +67,7 @@ typedef struct {
 	int enabled;
 	benchpoint_t point[DEBUGTIMERS_FRAMES][BENCHPOINT_COUNT];
 	double factor;
-	FILE *f;
+	PHYSFS_file *f;
 	std::vector<framestat_t> buffer;
 	unsigned int frame;
 	unsigned int pos;
@@ -120,15 +121,15 @@ bench_flush()
 	}
 
 	if (hdr) {
-		fprintf(debugtimers.f,"DEBUGTIMERS-V2, ffreq: %f\n",1.0/debugtimers.factor);
-		fprintf(debugtimers.f, "frame\tFT\ttotLO");
+		PHYSFSX_printf(debugtimers.f,"DEBUGTIMERS-V2, ffreq: %f\n",1.0/debugtimers.factor);
+		PHYSFSX_printf(debugtimers.f, "frame\tFT\ttotLO");
 		for (j=0; j<3; j++) {
 			for (int i=0; i<BENCHPOINT_COUNT; i++) {
 				char xhdr[3]={'C','G','L'};
-				fprintf(debugtimers.f, "\t%c%s",xhdr[j],point_name[i]);
+				PHYSFSX_printf(debugtimers.f, "\t%c%s",xhdr[j],point_name[i]);
 			}
 		}
-		fputc('\n', debugtimers.f);
+		PHYSFSX_puts(debugtimers.f,"\n");
 		hdr=0;
 	}
 
@@ -137,9 +138,9 @@ bench_flush()
 		const framestat_t *fs=&debugtimers.buffer[j];
 
 		for (i=0; i< DEBUGTIMERS_FRAMESTAT_TOTAL; i++) {
-			fprintf(debugtimers.f, "%lu\t",fs->ts[i]);
+			PHYSFSX_printf(debugtimers.f, "%lu\t",fs->ts[i]);
 		}
-		fputc('\n', debugtimers.f);
+		PHYSFSX_puts(debugtimers.f,"\n");
 	}
 	debugtimers.buf_pos=0;
 }
@@ -237,9 +238,14 @@ extern void bench_init(const std::string& filename, int size)
 	}
 
 	debugtimers.enabled=1;
-	debugtimers.buf_size=static_cast<unsigned int>(size);
-	debugtimers.f=fopen(filename.c_str(),"wt");
+	debugtimers.f=PHYSFS_openWrite(filename.c_str());
+	if (debugtimers.f == NULL) {
+		con_printf(CON_URGENT,"DEBUGTIMERS: failed to open '%s'", filename.c_str());
+		debugtimers.enabled=0;
+		return;
+	}
 
+	debugtimers.buf_size=static_cast<unsigned int>(size);
 	con_printf(CON_NORMAL,"enabling DEBUGTIMERS, writing to '%s', blocksize: %u", filename.c_str(), debugtimers.buf_size);
 	debugtimers.factor = -1.0;
 #ifdef _WIN32
@@ -312,7 +318,7 @@ extern void bench_close()
 
 	bench_flush();
 	if (debugtimers.f) {
-		fclose(debugtimers.f);
+		PHYSFS_close(debugtimers.f);
 		debugtimers.f=NULL;
 	}
 	debugtimers.buffer.resize(0);
