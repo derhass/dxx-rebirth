@@ -73,6 +73,10 @@ typedef struct {
 	unsigned int pos;
 	unsigned int buf_size;
 	unsigned int buf_pos;
+	/* accumulation */
+	int accumulate_enabled;
+	timestamp_t acc[3][3];
+	unsigned int acc_frames;
 } debugtimers_t;
 
 static debugtimers_t debugtimers;
@@ -148,6 +152,15 @@ bench_flush()
 	debugtimers.buf_pos=0;
 }
 
+static void bench_accumulate_ts(int i, timestamp_t ts)
+{
+	debugtimers.acc[i][0] += ts;
+	if (ts < debugtimers.acc[i][1])
+		debugtimers.acc[i][1] = ts;
+	if (ts > debugtimers.acc[i][2])
+		debugtimers.acc[i][2] = ts;
+}
+
 static void bench_finish(benchpoint_t *b)
 {
 	int i;
@@ -220,6 +233,14 @@ static void bench_finish(benchpoint_t *b)
 			b[i].ts[TIMESTAMP_GL_GPU] - b[i].ts[TIMESTAMP_GL_CPU];
 	}
 
+	if (debugtimers.accumulate_enabled) {
+		if (debugtimers.acc_frames++ >= DEBUGTIMERS_FRAMES) {
+			bench_accumulate_ts(0, fs->ts[DEBUGTIMERS_FRAMESTAT_GBL]);
+			bench_accumulate_ts(1, fs->ts[DEBUGTIMERS_FRAMESTAT_GBL + DEBUGTIMERS_FRAMESTAT_CPU]);
+			bench_accumulate_ts(2, fs->ts[DEBUGTIMERS_FRAMESTAT_TOTAL-1]);
+		}
+	}
+
 	if (++debugtimers.buf_pos >= debugtimers.buf_size) {
 		/* dump it to the file */
 		bench_flush();
@@ -267,6 +288,8 @@ extern void bench_init(const std::string& filename, int size)
 
 	debugtimers.buffer.resize(debugtimers.buf_size);
 	debugtimers.buf_pos=0;
+
+	debugtimers.accumulate_enabled=0;
 }
 
 extern void bench_init_gl()
@@ -335,6 +358,7 @@ extern void bench_start_frame()
 
 	bench_point(BENCHPOINT_START);
 }
+
 extern void bench_end_frame()
 {
 	if (!debugtimers.enabled)
@@ -368,6 +392,48 @@ extern void bench_point(benchpoint_desc_t bp)
 		glQueryCounterFunc(b->gl_query_obj, GL_TIMESTAMP);
 	}
 #endif // OGL
+}
+
+extern void bench_accumulate_start()
+{
+	if (debugtimers.accumulate_enabled)
+		return;
+
+	debugtimers.accumulate_enabled=1;
+	debugtimers.acc_frames=0;
+	for (int i=0; i<3; i++) {
+		debugtimers.acc[i][0]=0;
+		debugtimers.acc[i][1]=static_cast<timestamp_t>(-1);
+		debugtimers.acc[i][2]=0;
+	}
+}
+
+extern void bench_accumulate_stop()
+{
+	if (!debugtimers.accumulate_enabled)
+		return;
+	debugtimers.accumulate_enabled=0;
+	if (debugtimers.acc_frames <= DEBUGTIMERS_FRAMES)
+		return;
+
+	unsigned int fr=debugtimers.acc_frames - DEBUGTIMERS_FRAMES;
+	double inv_fr=1.0/(1000.0 * fr);
+	double acc[3][3];
+
+	for (int i=0; i<3; i++) {
+		acc[i][0]=debugtimers.acc[i][0] * inv_fr;
+		acc[i][1]=debugtimers.acc[i][1] / 1000.0;
+		acc[i][2]=debugtimers.acc[i][2] / 1000.0;
+	}
+
+	con_printf(CON_URGENT, "STATS: %u fr, "
+		"CPU: %.3fms/%.3fms/%.3fms "
+		"GPU: %.3fms/%.3fms/%.3fms "
+		"lat: %.3fms/%.3fms/%.3fms",
+		fr,
+		acc[0][0], acc[0][1], acc[0][2],
+		acc[1][0], acc[1][1], acc[1][2],
+		acc[2][0], acc[2][1], acc[2][2]);
 }
 
 #endif // USE_DEBUGTIMERS

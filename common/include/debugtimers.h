@@ -43,6 +43,8 @@ extern void bench_flush();
 extern void bench_start_frame();
 extern void bench_end_frame();
 extern void bench_point(benchpoint_desc_t bp);
+extern void bench_accumulate_start();
+extern void bench_accumulate_stop();
 
 #define BENCH_INIT(x,y) bench_init(x,y)
 #define BENCH_INIT_GL(x) bench_init_gl()
@@ -52,6 +54,8 @@ extern void bench_point(benchpoint_desc_t bp);
 #define BENCH_START_FRAME(x) bench_start_frame()
 #define BENCH_END_FRAME(x) bench_end_frame()
 #define BENCH_POINT(x) bench_point(x)
+#define BENCH_ACCUMULATE_START(x) bench_accumulate_start()
+#define BENCH_ACCUMULATE_STOP(x) bench_accumulate_stop()
 
 #else // USE_DEBUGTIMERS
 
@@ -64,6 +68,8 @@ extern void bench_point(benchpoint_desc_t bp);
 #define BENCH_START_FRAME(x) ((void)0)
 #define BENCH_END_FRAME(x) ((void)0)
 #define BENCH_POINT(x) ((void)0)
+#define BENCH_ACCUMULATE_START(x) ((void)0)
+#define BENCH_ACCUMULATE_STOP(x) ((void)0)
 
 #endif // USE_DEBUGTIMERS
 

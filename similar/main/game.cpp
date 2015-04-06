@@ -1076,6 +1076,7 @@ window_event_result game_handler(window *,const d_event &event, const unused_win
 				palette_restore();
 			
 			reset_cockpit();
+			BENCH_ACCUMULATE_START();
 			break;
 
 		case EVENT_WINDOW_DEACTIVATED:
@@ -1091,6 +1092,7 @@ window_event_result game_handler(window *,const d_event &event, const unused_win
 			event_toggle_focus(0);
 			key_toggle_repeat(1);
 			BENCH_FLUSH();
+			BENCH_ACCUMULATE_STOP();
 			break;
 
 		case EVENT_JOYSTICK_BUTTON_UP:
