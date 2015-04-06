@@ -222,7 +222,7 @@ static void bench_finish(benchpoint_t *b)
 	}
 }
 
-extern void bench_init(const char *filename)
+extern void bench_init(const std::string& filename, int size)
 {
 	int i,j,k;
 
@@ -232,15 +232,15 @@ extern void bench_init(const char *filename)
 	debugtimers.f=NULL;
 	debugtimers.buf_size=0;
 
-	if (filename == NULL) {
+	if (filename.empty() || size < 1) {
 		return;
 	}
 
 	debugtimers.enabled=1;
-	debugtimers.buf_size=10000;
-	debugtimers.f=fopen(filename,"wt");
+	debugtimers.buf_size=static_cast<unsigned int>(size);
+	debugtimers.f=fopen(filename.c_str(),"wt");
 
-	con_printf(CON_NORMAL,"enabling DEBUGTIMERS, writing to '%s', blocksize: %u", filename, debugtimers.buf_size);
+	con_printf(CON_NORMAL,"enabling DEBUGTIMERS, writing to '%s', blocksize: %u", filename.c_str(), debugtimers.buf_size);
 	debugtimers.factor = -1.0;
 #ifdef _WIN32
 	LARGE_INTEGER freq;

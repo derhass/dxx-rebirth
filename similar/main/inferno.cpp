@@ -209,6 +209,10 @@ static void print_commandline_help()
 	printf( "  -nodoublebuffer               Disable Doublebuffering\n");
 	printf( "  -bigpig                       Use uncompressed RLE bitmaps\n");
 	printf( "  -16bpp                        Use 16Bpp instead of 32Bpp\n");
+#ifdef USE_DEBUGTIMERS
+	printf( "  -debugtimers <filename>       write a per-frame timing log file (default: disabled)\n");
+	printf( "  -debugtimers-size <n>         set debugtimers buffer size to <n> (default: 10000)\n");
+#endif
 #ifdef    OGL
 	printf( "  -gl_oldtexmerge               Use old texmerge, uses more ram, but might be faster\n");
 	printf( "  -gl_intensity4_ok <n>         Override DbgGlIntensity4Ok (default: 1)\n");
@@ -352,7 +356,7 @@ int main(int argc, char *argv[])
 	if (!PHYSFSX_init(argc, argv))
 		return 1;
 	con_init();  // Initialise the console
-	BENCH_INIT("./debugtimers.txt");
+	BENCH_INIT(GameArg.DbgTimersFile, GameArg.DbgTimersSize);
 
 	setbuf(stdout, NULL); // unbuffered output via printf
 #ifdef _WIN32

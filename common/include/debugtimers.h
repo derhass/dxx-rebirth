@@ -18,6 +18,8 @@
 
 #ifdef USE_DEBUGTIMERS
 
+#include <string>
+
 typedef enum {
 	BENCHPOINT_START,
 	BENCHPOINT_TIMER_UPDATE,
@@ -33,7 +35,7 @@ typedef enum {
 	BENCHPOINT_COUNT
 } benchpoint_desc_t;
 
-extern void bench_init(const char *filename);
+extern void bench_init(const std::string& filename, int size);
 extern void bench_init_gl();
 extern void bench_close_gl();
 extern void bench_close();
@@ -42,7 +44,7 @@ extern void bench_start_frame();
 extern void bench_end_frame();
 extern void bench_point(benchpoint_desc_t bp);
 
-#define BENCH_INIT(x) bench_init(x)
+#define BENCH_INIT(x,y) bench_init(x,y)
 #define BENCH_INIT_GL(x) bench_init_gl()
 #define BENCH_CLOSE_GL(x) bench_close_gl()
 #define BENCH_CLOSE(x) bench_close()
@@ -54,7 +56,7 @@ extern void bench_point(benchpoint_desc_t bp);
 #else // USE_DEBUGTIMERS
 
 /* USE_DEBUGTIMERS not set, define macros which do nothing */
-#define BENCH_INIT(x) ((void)0)
+#define BENCH_INIT(x,y) ((void)0)
 #define BENCH_INIT_GL(x) ((void)0)
 #define BENCH_CLOSE_GL(x) ((void)0)
 #define BENCH_CLOSE(x) ((void)0)

@@ -166,6 +166,9 @@ static void InitGameArg()
 #endif
 	GameArg.DbgVerbose = CON_NORMAL;
 	GameArg.DbgBpp 			= 32;
+#ifdef USE_DEBUGTIMERS
+	GameArg.DbgTimersSize		= 10000;
+#endif
 #ifdef OGL
 	GameArg.OglSyncMethod 		= OGL_SYNC_METHOD_DEFAULT;
 	GameArg.OglSyncWait		= OGL_SYNC_WAIT_DEFAULT;
@@ -349,6 +352,12 @@ static void ReadCmdArgs(Inilist &ini, Arglist &Args)
 			GameArg.DbgNoCompressPigBitmap 		= 1;
 		else if (!d_stricmp(p, "-16bpp"))
 			GameArg.DbgBpp 		= 16;
+#ifdef USE_DEBUGTIMERS
+		else if (!d_stricmp(p, "-debugtimers"))
+			GameArg.DbgTimersFile	= arg_string(pp, end);
+		else if (!d_stricmp(p, "-debugtimers-ize"))
+			GameArg.DbgTimersSize 	= arg_integer(pp, end);
+#endif
 
 #ifdef OGL
 		else if (!d_stricmp(p, "-gl_oldtexmerge"))

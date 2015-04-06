@@ -130,6 +130,10 @@ struct Arg
 	int DbgNoDoubleBuffer;
 	int DbgNoCompressPigBitmap;
 	int DbgBpp;
+#ifdef USE_DEBUGTIMERS
+	std::string DbgTimersFile;
+	int DbgTimersSize;
+#endif
 #ifdef OGL
 	int DbgUseOldTextureMerge;
 	int DbgGlIntensity4Ok;
