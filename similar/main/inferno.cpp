@@ -356,7 +356,6 @@ int main(int argc, char *argv[])
 	if (!PHYSFSX_init(argc, argv))
 		return 1;
 	con_init();  // Initialise the console
-	BENCH_INIT(GameArg.DbgTimersFile, GameArg.DbgTimersSize);
 
 	setbuf(stdout, NULL); // unbuffered output via printf
 #ifdef _WIN32
@@ -443,6 +442,7 @@ int main(int argc, char *argv[])
 	PHYSFSX_addArchiveContent();
 
 	arch_init();
+	BENCH_INIT(GameArg.DbgTimersFile, GameArg.DbgTimersSize);
 
 	select_tmap(GameArg.DbgTexMap.c_str());
 
