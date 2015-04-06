@@ -32,7 +32,8 @@
 #include "console.h"
 #include "maths.h"
 #include "game.h" // for FrameTime
-#include "u_mem.h"
+
+#include <vector>
 
 #define DEBUGTIMERS_FRAMES 10
 
@@ -62,12 +63,13 @@ typedef struct {
 } framestat_t;
 
 typedef struct {
+	int enabled;
 	benchpoint_t point[DEBUGTIMERS_FRAMES][BENCHPOINT_COUNT];
-	unsigned int frame;
-	unsigned int pos;
 	double factor;
 	FILE *f;
-	framestat_t *buffer;
+	std::vector<framestat_t> buffer;
+	unsigned int frame;
+	unsigned int pos;
 	unsigned int buf_size;
 	unsigned int buf_pos;
 } debugtimers_t;
@@ -113,7 +115,7 @@ bench_flush()
 	static int hdr=1;
 	int i;
 
-	if (!debugtimers.f || !debugtimers.buffer) {
+	if (!debugtimers.f) {
 		return;
 	}
 
@@ -188,9 +190,6 @@ static void bench_finish(benchpoint_t *b)
 #endif // OGL
 
 	/* dump the times to the buffer */
-	if (debugtimers.buffer == NULL) {
-		return;
-	}
 	fs=&debugtimers.buffer[debugtimers.buf_pos];
 
 	/* GBL PART */
@@ -225,25 +224,26 @@ static void bench_finish(benchpoint_t *b)
 
 extern void bench_init(const char *filename)
 {
-#ifdef _WIN32
-	LARGE_INTEGER freq;
-#endif
 	int i,j,k;
 
+	debugtimers.enabled=0;
 	debugtimers.frame=0;
 	debugtimers.pos=0;
-	debugtimers.buffer=NULL;
 	debugtimers.f=NULL;
-	debugtimers.buf_size=10000;
+	debugtimers.buf_size=0;
 
 	if (filename == NULL) {
 		return;
 	}
+
+	debugtimers.enabled=1;
+	debugtimers.buf_size=10000;
 	debugtimers.f=fopen(filename,"wt");
 
-	con_printf(CON_NORMAL,"enabling DEBUGTIMERS, writing to '%s'", filename);
+	con_printf(CON_NORMAL,"enabling DEBUGTIMERS, writing to '%s', blocksize: %u", filename, debugtimers.buf_size);
 	debugtimers.factor = -1.0;
 #ifdef _WIN32
+	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	debugtimers.factor = 1000000.0 / (double)freq.QuadPart;
 #endif
@@ -256,17 +256,16 @@ extern void bench_init(const char *filename)
 		}
 	}
 
-	MALLOC(debugtimers.buffer, framestat_t, sizeof(*debugtimers.buffer) * debugtimers.buf_size);
-
-	con_printf(CON_VERBOSE,"DEBUGTIMERS: blocksize: %u, memory: %.2fkB",
-		debugtimers.buf_size,
-		(float)(sizeof(*debugtimers.buffer) * debugtimers.buf_size)/1024.0f);
+	debugtimers.buffer.resize(debugtimers.buf_size);
 	debugtimers.buf_pos=0;
 }
 
 extern void bench_init_gl()
 {
 #ifdef OGL
+	if (!debugtimers.enabled)
+		return;
+
 	GLuint ids[DEBUGTIMERS_FRAMES * BENCHPOINT_COUNT];
 	int i,j;
 
@@ -291,6 +290,9 @@ extern void bench_init_gl()
 extern void bench_close_gl()
 {
 #ifdef OGL
+	if (!debugtimers.enabled)
+		return;
+
 	for (int i=0; i<DEBUGTIMERS_FRAMES; i++) {
 		for (int j=0; j<BENCHPOINT_COUNT; j++) {
 			if (debugtimers.point[i][j].gl_query_obj) {
@@ -305,30 +307,29 @@ extern void bench_close_gl()
 
 extern void bench_close()
 {
+	if (!debugtimers.enabled)
+		return;
+
 	bench_flush();
 	if (debugtimers.f) {
 		fclose(debugtimers.f);
 		debugtimers.f=NULL;
 	}
-	mem_free(debugtimers.buffer);
-	debugtimers.buffer=NULL;
+	debugtimers.buffer.resize(0);
+	debugtimers.enabled=0;
 }
 	
 extern void bench_start_frame()
 {
-	if (debugtimers.buffer == NULL) {
-		// debugtimers not enabled
+	if (!debugtimers.enabled)
 		return;
-	}
 
 	bench_point(BENCHPOINT_START);
 }
 extern void bench_end_frame()
 {
-	if (debugtimers.buffer == NULL) {
-		// debugtimers not enabled
+	if (!debugtimers.enabled)
 		return;
-	}
 
 	bench_point(BENCHPOINT_END);
 
@@ -343,10 +344,8 @@ extern void bench_end_frame()
 
 extern void bench_point(benchpoint_desc_t bp)
 {
-	if (debugtimers.buffer == NULL) {
-		// debugtimers not enabled
+	if (!debugtimers.enabled)
 		return;
-	}
 
 	benchpoint_t *b=& debugtimers.point[debugtimers.pos][bp];
 	b->ts[TIMESTAMP_CPU]=getcurtime();
