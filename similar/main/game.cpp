@@ -104,6 +104,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #endif
 #include "event.h"
 #include "window.h"
+#include "debugtimers.h"
 
 #ifdef EDITOR
 #include "editor/editor.h"
@@ -1089,6 +1090,7 @@ window_event_result game_handler(window *,const d_event &event, const unused_win
 
 			event_toggle_focus(0);
 			key_toggle_repeat(1);
+			BENCH_FLUSH();
 			break;
 
 		case EVENT_JOYSTICK_BUTTON_UP:
@@ -1106,7 +1108,12 @@ window_event_result game_handler(window *,const d_event &event, const unused_win
 			if (!time_paused)
 			{
 				calc_frame_time();
+				BENCH_POINT(BENCHPOINT_CALC_TIME);
 				GameProcessFrame();
+				BENCH_POINT(BENCHPOINT_PROCESS);
+			} else {
+				BENCH_POINT(BENCHPOINT_CALC_TIME);
+				BENCH_POINT(BENCHPOINT_PROCESS);
 			}
 
 			if (!Automap_active)		// efficiency hack
@@ -1121,6 +1128,7 @@ window_event_result game_handler(window *,const d_event &event, const unused_win
 
 		case EVENT_WINDOW_CLOSE:
 			digi_stop_digi_sounds();
+			BENCH_FLUSH();
 
 			if ( (Newdemo_state == ND_STATE_RECORDING) || (Newdemo_state == ND_STATE_PAUSED) )
 				newdemo_stop_recording();
@@ -1144,6 +1152,7 @@ window_event_result game_handler(window *,const d_event &event, const unused_win
 			break;
 
 		case EVENT_WINDOW_CLOSED:
+			BENCH_FLUSH();
 			break;
 
 		default:

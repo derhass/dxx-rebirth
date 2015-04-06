@@ -57,6 +57,7 @@
 #include "config.h"
 #include "playsave.h"
 #include "vers_id.h"
+#include "debugtimers.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <OpenGL/glu.h>
@@ -659,6 +660,7 @@ int gr_set_mode(u_int32_t mode)
 #ifndef OGLES
 	ogl_extensions_init();
 	sync_helper.init(GameArg.OglSyncMethod, GameArg.OglSyncWait);
+	BENCH_INIT_GL();
 #endif
 
 	OGL_VIEWPORT(0,0,w,h);
@@ -796,6 +798,7 @@ void gr_close()
 		ogl_smash_texture_list_internal();
 #ifndef OGLES
 		sync_helper.deinit();
+		BENCH_CLOSE_GL();
 #endif
 	}
 

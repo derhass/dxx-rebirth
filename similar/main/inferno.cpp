@@ -87,6 +87,7 @@ char copyright[] = "DESCENT II  COPYRIGHT (C) 1994-1996 PARALLAX SOFTWARE CORPOR
 #include "../texmap/scanline.h" //for select_tmap -MM
 #include "event.h"
 #include "rbaudio.h"
+#include "debugtimers.h"
 #ifndef __linux__
 #include "messagebox.h"
 #else
@@ -351,6 +352,7 @@ int main(int argc, char *argv[])
 	if (!PHYSFSX_init(argc, argv))
 		return 1;
 	con_init();  // Initialise the console
+	BENCH_INIT("./debugtimers.txt");
 
 	setbuf(stdout, NULL); // unbuffered output via printf
 #ifdef _WIN32
@@ -576,6 +578,7 @@ int main(int argc, char *argv[])
 	newmenu_free_background();
 	Current_mission.reset();
 	PHYSFSX_removeArchiveContent();
+	BENCH_CLOSE();
 
 	return(0);		//presumably successful exit
 }

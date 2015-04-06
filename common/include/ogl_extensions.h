@@ -32,6 +32,12 @@
 typedef int64_t GLint64;
 typedef uint64_t GLuint64;
 
+/* GL 3.2 */
+typedef void (APIENTRYP PFNGLGETINTEGER64VPROC) (GLenum pname, GLint64 *data);
+
+extern bool ogl_have_3_2;
+extern PFNGLGETINTEGER64VPROC glGetInteger64vFunc;
+
 /* GL_ARB_sync */
 typedef struct __GLsync *GLsync;
 
@@ -49,6 +55,27 @@ extern bool ogl_have_ARB_sync;
 extern PFNGLFENCESYNCPROC glFenceSyncFunc;
 extern PFNGLDELETESYNCPROC glDeleteSyncFunc;
 extern PFNGLCLIENTWAITSYNCPROC glClientWaitSyncFunc;
+
+/* GL_ARB_occlusion_query */
+typedef void (APIENTRYP PFNGLGENQUERIESARBPROC) (GLsizei n, GLuint *ids);
+typedef void (APIENTRYP PFNGLDELETEQUERIESARBPROC) (GLsizei n, const GLuint *ids);
+typedef void (APIENTRYP PFNGLGETQUERYIVARBPROC) (GLenum target, GLenum pname, GLint *params);
+
+#define GL_QUERY_RESULT                   0x8866
+
+extern bool ogl_have_ARB_occlusion_query;
+extern PFNGLGENQUERIESARBPROC glGenQueriesARBFunc;
+extern PFNGLDELETEQUERIESARBPROC glDeleteQueriesARBFunc;
+
+/* GL_ARB_timer_query */
+typedef void (APIENTRYP PFNGLQUERYCOUNTERPROC) (GLuint id, GLenum target);
+typedef void (APIENTRYP PFNGLGETQUERYOBJECTUI64VPROC) (GLuint id, GLenum pname, GLuint64 *params);
+
+#define GL_TIMESTAMP                      0x8E28
+
+extern bool ogl_have_ARB_timer_query;
+extern PFNGLQUERYCOUNTERPROC glQueryCounterFunc;
+extern PFNGLGETQUERYOBJECTUI64VPROC glGetQueryObjectui64vFunc;
 
 /* Global initialization:
  * will need an OpenGL context and intialize all function pointers.

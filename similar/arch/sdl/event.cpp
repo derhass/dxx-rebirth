@@ -19,6 +19,7 @@
 #include "window.h"
 #include "timer.h"
 #include "config.h"
+#include "debugtimers.h"
 
 #include "joy.h"
 #include "args.h"
@@ -144,10 +145,14 @@ void event_process(void)
 {
 	d_event event;
 	window *wind = window_get_front();
+	BENCH_START_FRAME();
 
 	timer_update();
+	BENCH_POINT(BENCHPOINT_TIMER_UPDATE);
 
 	event_poll();	// send input events first
+
+	BENCH_POINT(BENCHPOINT_EVENT_POLL);
 
 	// Doing this prevents problems when a draw event can create a newmenu,
 	// such as some network menus when they report a problem
@@ -171,7 +176,9 @@ void event_process(void)
 			wind = window_get_next(*wind);
 	}
 
+	BENCH_POINT(BENCHPOINT_FRAME);
 	gr_flip();
+	BENCH_END_FRAME();
 }
 
 void event_toggle_focus(int activate_focus)

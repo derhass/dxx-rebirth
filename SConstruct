@@ -1135,6 +1135,7 @@ class DXXCommon(LazyObjectConstructor):
 				'arguments': (
 					('check_header_includes', False, 'compile test each header (developer option)'),
 					('debug', False, 'build DEBUG binary which includes asserts, debugging output, cheats and more output'),
+					('debugtimers', False, 'build with DEBUGTIMERS feature for per-frame timing logs'),
 					('memdebug', self.default_memdebug, 'build with malloc tracking'),
 					('lto', False, 'enable gcc link time optimization'),
 					('profiler', False, 'profiler build'),
@@ -1282,6 +1283,7 @@ class DXXCommon(LazyObjectConstructor):
 	class _PlatformSettings:
 		tools = None
 		ogllibs = ''
+		extralibs = ''
 		platform_objects = []
 		def __init__(self,program,user_settings):
 			self.__program = program
@@ -1315,6 +1317,8 @@ class DXXCommon(LazyObjectConstructor):
 				self.ogllibs = [ user_settings.opengles_lib, 'EGL']
 			else:
 				self.ogllibs = self.__opengl_libs
+			if (user_settings.debugtimers == 1):
+				self.extralibs = [ 'rt' ]
 		def adjust_environment(self,program,env):
 			env.Append(CPPDEFINES = ['HAVE_STRUCT_TIMESPEC', 'HAVE_STRUCT_TIMEVAL'])
 			env.Append(CCFLAGS = ['-pthread'])
@@ -1521,6 +1525,11 @@ class DXXCommon(LazyObjectConstructor):
 		else:
 			env.Append(CPPDEFINES = ['NDEBUG', 'RELEASE'])
 		env.Prepend(CXXFLAGS = ['-O2'])
+
+		if self.user_settings.debugtimers:
+			message(self, "including: DEBUGTIMERS")
+			env.Append(CPPDEFINES = ['USE_DEBUGTIMERS'])
+
 		if self.user_settings.memdebug:
 			message(self, "including: MEMDEBUG")
 			env.Append(CPPDEFINES = ['DEBUG_MEMORY_ALLOCATIONS'])
@@ -1589,6 +1598,7 @@ class DXXArchive(DXXCommon):
 'maths/rand.cpp',
 'maths/tables.cpp',
 'maths/vecmat.cpp',
+'misc/debugtimers.cpp',
 'misc/error.cpp',
 'misc/hmp.cpp',
 'misc/ignorecase.cpp',
@@ -2010,6 +2020,7 @@ class DXXProgram(DXXCommon):
 		objects = static_archive_construction.objects_common[:]
 		objects.extend(self.objects_common)
 		objects.extend(program_specific_objects)
+		env.Append(LIBS = self.platform_settings.extralibs)
 		if (self.user_settings.sdlmixer == 1):
 			objects.extend(static_archive_construction.objects_arch_sdlmixer)
 			objects.extend(self.objects_similar_arch_sdlmixer)
