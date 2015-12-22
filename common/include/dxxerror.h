@@ -39,6 +39,34 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #define __noreturn
 #endif
 
+/* Allow macro override */
+
+#if defined(DXX_ENABLE_DEBUGBREAK_TRAP) && !defined(DXX_DEBUGBREAK_TRAP)
+
+#if defined __clang__
+	/* Must be first, since clang also defines __GNUC__ */
+#	define DXX_DEBUGBREAK_TRAP()	__builtin_debugtrap()
+#elif defined __GNUC__
+#	if defined(__i386__) || defined(__amd64__)
+#		define DXX_DEBUGBREAK_TRAP()	__asm__ __volatile__("int3" ::: "cc", "memory")
+#	endif
+#elif defined _MSC_VER
+#	define DXX_DEBUGBREAK_TRAP()	__debugbreak()
+#endif
+
+#ifndef DXX_DEBUGBREAK_TRAP
+#	if defined __unix__
+/* for raise */
+#		include <signal.h>
+#		define DXX_DEBUGBREAK_TRAP()	raise(SIGTRAP)
+#	elif defined __GNUC__
+	/* May terminate execution */
+#		define DXX_DEBUGBREAK_TRAP()	__builtin_trap()
+#	endif
+#endif
+
+#endif
+
 namespace dcx {
 
 int error_init(void (*func)(const char *));    //init error system, returns 0=ok
@@ -75,34 +103,6 @@ void UserError(const char *fmt, ...) __noreturn __attribute_format_printf(1, 2);
 
 #ifndef NDEBUG		//macros for debugging
 #	define DXX_ENABLE_DEBUGBREAK_TRAP
-#endif
-
-/* Allow macro override */
-
-#if defined(DXX_ENABLE_DEBUGBREAK_TRAP) && !defined(DXX_DEBUGBREAK_TRAP)
-
-#if defined __clang__
-	/* Must be first, since clang also defines __GNUC__ */
-#	define DXX_DEBUGBREAK_TRAP()	__builtin_debugtrap()
-#elif defined __GNUC__
-#	if defined(__i386__) || defined(__amd64__)
-#		define DXX_DEBUGBREAK_TRAP()	__asm__ __volatile__("int3" ::: "cc", "memory")
-#	endif
-#elif defined _MSC_VER
-#	define DXX_DEBUGBREAK_TRAP()	__debugbreak()
-#endif
-
-#ifndef DXX_DEBUGBREAK_TRAP
-#	if defined __unix__
-/* for raise */
-#		include <signal.h>
-#		define DXX_DEBUGBREAK_TRAP()	raise(SIGTRAP)
-#	elif defined __GNUC__
-	/* May terminate execution */
-#		define DXX_DEBUGBREAK_TRAP()	__builtin_trap()
-#	endif
-#endif
-
 #endif
 
 // Encourage optimizer to treat d_debugbreak paths as unlikely
