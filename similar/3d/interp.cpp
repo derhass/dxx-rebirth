@@ -558,6 +558,10 @@ static P iterate_polymodel(P p, State &state)
 	return p;
 }
 
+}
+
+namespace dcx {
+
 #ifdef WORDS_BIGENDIAN
 static inline fix *fp(uint8_t *p)
 {
