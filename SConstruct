@@ -37,6 +37,7 @@ class DXXCommon:
 			self.editor = int(ARGUMENTS.get('editor', 0))
 			self.extra_version = ARGUMENTS.get('extra_version', None)
 			self.sdlmixer = int(ARGUMENTS.get('sdlmixer', 1))
+			self.getaddrinfo = int(ARGUMENTS.get('getaddrinfo', 1))
 			self.ipv6 = int(ARGUMENTS.get('ipv6', 0))
 			self.use_udp = int(ARGUMENTS.get('use_udp', 1))
 			self.use_tracker = int(ARGUMENTS.get('use_tracker', 1))
@@ -232,6 +233,10 @@ class DXXCommon:
 		# IPv6 compability?
 		if (self.user_settings.ipv6 == 1):
 			env.Append(CPPDEFINES = ['IPv6'])
+
+		# use getaddrinfo?
+		if (self.user_settings.getaddrinfo == 1):
+			env.Append(CPPDEFINES = ['DXX_HAVE_GETADDRINFO'])
 
 		# UDP support?
 		if (self.user_settings.use_udp == 1):
@@ -634,6 +639,7 @@ Help(program.PROGRAM_NAME + ', SConstruct file help:' +
 	'profiler=[0/1]'      profiler build [default: 0]
 	'editor=[0/1]'        include editor into build (!EXPERIMENTAL!) [default: 0]
 	'ipv6=[0/1]'          enable IPv6 compability [default: 0]
+	'getaddrinfo=[0/1]'   enable getaddrinfo(), disable for Windows <XP [default: 1]
 	'use_udp=[0/1]'       enable UDP support [default: 1]
 	'use_tracker=[0/1]'   enable Tracker support (requires udp) [default :1]
 	'verbosebuild=[0/1]'  print out all compiler/linker messages during building [default: 0]

@@ -30,10 +30,6 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #ifdef USE_UDP
 #ifdef _WIN32
-#ifdef _WIN32_WINNT
-#undef _WIN32_WINNT
-#endif
-#define _WIN32_WINNT 0x0501 // for get/freeaddrinfo()
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <io.h>
