@@ -10,6 +10,13 @@
 
 #define PATCH12
 
+#if defined(_WIN32) && defined(DXX_HAVE_GETADDRINFO)
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#endif
+#define _WIN32_WINNT 0x0501 // for get/freeaddrinfo()
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -156,6 +163,7 @@ void udp_traffic_stat()
 // Resolve address
 int udp_dns_filladdr( char *host, int port, struct _sockaddr *sAddr )
 {
+#ifdef DXX_HAVE_GETADDRINFO
 	// Variables
 	struct addrinfo *result, hints;
 	char sPort[6];
@@ -200,6 +208,20 @@ int udp_dns_filladdr( char *host, int port, struct _sockaddr *sAddr )
 	
 	// Free memory
 	freeaddrinfo( result );
+#else
+	struct sockaddr_in *sai = (struct sockaddr_in*)sAddr;
+	const struct hostent *he = gethostbyname(host);
+	memset( sAddr, 0, sizeof( struct _sockaddr ) );
+	if (!he)
+	{
+		con_printf(CON_URGENT, "udp_dns_filladdr (gethostbyname) failed for host %s\n", host);
+		nm_messagebox(TXT_ERROR, 1, TXT_OK, "Could not resolve IPv4 address\n%s", host);
+		return -1;
+	}
+	sai->sin_family = _af;
+	sai->sin_port = htons(port);
+	sai->sin_addr = *(const struct in_addr *)(he->h_addr);
+#endif
 	return 0;
 }
 
