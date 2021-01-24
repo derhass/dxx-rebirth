@@ -510,6 +510,8 @@ class D1XProgram(DXXProgram):
 'misc/strio.c',
 'misc/strutil.c',
 'misc/dump_vertex.c',
+'misc/miniz.c',
+'misc/lupng.c',
 'texmap/ntmap.c',
 'texmap/scanline.c'
 #'tracker/client/tracker_client.c'
