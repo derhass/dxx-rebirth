@@ -152,10 +152,94 @@ dv_find_or_create_obj(dv_t *dv, GLuint tex)
 	return o;
 }
 
+static void
+dv_add_tri(dv_obj_t *o, GLfloat *vtxA, GLfloat *vtxB, GLfloat *vtxC,  GLfloat *clrA, GLfloat *clrB, GLfloat *clrC, GLfloat *texA, GLfloat *texB, GLfloat *texC, GLfloat *nrmA, GLfloat *nrmB, GLfloat *nrmC)
+{
+	GLuint flags = 0;
+	GLuint i;
+
+	if (o->vcnt + 3 > DV_MAX_VTX) {
+		return;
+	}
+	if (o->tcnt + 1 > DV_MAX_TRI) {
+		return;
+	}
+
+	if (vtxA && vtxB && vtxC) {
+		flags |= DV_VTX;
+		for (i=0; i<3; i++) {
+			o->vtx[o->vcnt+0][i] = vtxA[i];
+			o->vtx[o->vcnt+1][i] = vtxB[i];
+			o->vtx[o->vcnt+2][i] = vtxC[i];
+		}
+	}
+	if (clrA && clrB && clrC) {
+		flags |= DV_CLR;
+		for (i=0; i<4; i++) {
+			o->clr[o->vcnt+0][i] = clrA[i];
+			o->clr[o->vcnt+1][i] = clrB[i];
+			o->clr[o->vcnt+2][i] = clrC[i];
+		}
+	}
+	if (texA && texB && texC) {
+		flags |= DV_TEX;
+		for (i=0; i<2; i++) {
+			GLfloat f=(i==1)?-1.f:1.f;
+			o->tex[o->vcnt+0][i] = f*texA[i];
+			o->tex[o->vcnt+1][i] = f*texB[i];
+			o->tex[o->vcnt+2][i] = f*texC[i];
+		}
+	}
+	if (nrmA && nrmB && nrmC) {
+		flags |= DV_NRM;
+		for (i=0; i<3; i++) {
+			o->nrm[o->vcnt+0][i] = nrmA[i];
+			o->nrm[o->vcnt+1][i] = nrmB[i];
+			o->nrm[o->vcnt+2][i] = nrmC[i];
+		}
+	}
+	if (!flags) {
+		return;
+	}
+
+	if (!(flags&DV_NRM)) {
+		GLfloat a[3],b[3],n[4];
+		flags |= DV_NRM;
+		for (i=0; i<3; i++) {
+			/*
+			a[i] =  o->vtx[o->vcnt+2 - dump_vertex_meta.facing][i] - o->vtx[o->vcnt+0][i];
+			b[i] =  o->vtx[o->vcnt+1 + dump_vertex_meta.facing][i] - o->vtx[o->vcnt+0][i];
+			*/
+			a[i] =  o->vtx[o->vcnt+1][i] - o->vtx[o->vcnt+0][i];
+			b[i] =  o->vtx[o->vcnt+2][i] - o->vtx[o->vcnt+0][i];
+		}
+		n[0] = a[1]*b[2] - a[2]*b[1];
+		n[1] = a[2]*b[0] - a[0]*b[2];
+		n[2] = a[0]*b[1] - a[1]*b[0];
+		n[3] = sqrt(n[0] * n[0] + n[1]*n[1] + n[2]*n[2]);
+		for (i=0; i<3; i++) {
+			n[i] = n[i] / n[3];
+		}
+		for (i=0; i<3; i++) {
+			o->nrm[o->vcnt+i][0] = n[0];
+			o->nrm[o->vcnt+i][1] = n[1];
+			o->nrm[o->vcnt+i][2] = n[2];
+		}
+	}
+	for (i=0; i<3; i++) {
+		o->flags[o->vcnt+i] = flags;
+	}
+
+	o->tri[o->tcnt][0] = o->vcnt;
+	o->tri[o->tcnt][1] = o->vcnt + 1;
+	o->tri[o->tcnt][2] = o->vcnt + 2;
+	o->tcnt += 1;
+	o->vcnt += 3;
+}
+
 extern void
 dv_add_tfan(dv_t *dv, GLuint tex_idx, GLuint cnt, GLfloat *vtx, GLfloat *clr, GLfloat *tex, GLfloat *nrm)
 {
-	GLuint flags = 0;
 	GLuint i;
 	dv_obj_t *o;
 
@@ -177,78 +261,11 @@ dv_add_tfan(dv_t *dv, GLuint tex_idx, GLuint cnt, GLfloat *vtx, GLfloat *clr, GL
 		return;
 	}
 
-	if (o->vcnt + cnt > DV_MAX_VTX) {
-		return;
-	}
-	if (o->tcnt + cnt - 2 > DV_MAX_TRI) {
-		return;
-	}
-
-	if (vtx) {
-		flags |= DV_VTX;
-		for (i=0; i<cnt; i++) {
-			o->vtx[o->vcnt+i][0] = vtx[3*i+0];
-			o->vtx[o->vcnt+i][1] = vtx[3*i+1];
-			o->vtx[o->vcnt+i][2] = vtx[3*i+2];
-		}
-	}
-	if (clr) {
-		flags |= DV_CLR;
-		for (i=0; i<cnt; i++) {
-			o->clr[o->vcnt+i][0] = clr[4*i+0];
-			o->clr[o->vcnt+i][1] = clr[4*i+1];
-			o->clr[o->vcnt+i][2] = clr[4*i+2];
-			o->clr[o->vcnt+i][3] = clr[4*i+3];
-		}
-	}
-	if (tex) {
-		flags |= DV_TEX;
-		for (i=0; i<cnt; i++) {
-			o->tex[o->vcnt+i][0] = tex[2*i+0];
-			o->tex[o->vcnt+i][1] = -tex[2*i+1];
-		}
-	}
-	if (nrm) {
-		flags |= DV_NRM;
-		for (i=0; i<cnt; i++) {
-			o->nrm[o->vcnt+i][0] = nrm[3*i+0];
-			o->nrm[o->vcnt+i][1] = nrm[3*i+1];
-			o->nrm[o->vcnt+i][2] = nrm[3*i+2];
-		}
-	}
-	if (!flags) {
-		return;
-	}
-	if (!(flags&DV_NRM)) {
-		GLfloat a[3],b[3],n[4];
-		flags |= DV_NRM;
-		for (i=0; i<3; i++) {
-			a[i] =  o->vtx[o->vcnt+2 - dump_vertex_meta.facing][i] - o->vtx[o->vcnt+0][i];
-			b[i] =  o->vtx[o->vcnt+1 + dump_vertex_meta.facing][i] - o->vtx[o->vcnt+0][i];
-		}
-		n[0] = a[1]*b[2] - a[2]*b[1];
-		n[1] = a[2]*b[0] - a[0]*b[2];
-		n[2] = a[0]*b[1] - a[1]*b[0];
-		n[3] = sqrt(n[0] * n[0] + n[1]*n[1] + n[2]*n[2]);
-		for (i=0; i<3; i++) {
-			n[i] = n[i] / n[3];
-		}
-		for (i=0; i<cnt; i++) {
-			o->nrm[o->vcnt+i][0] = n[0];
-			o->nrm[o->vcnt+i][1] = n[1];
-			o->nrm[o->vcnt+i][2] = n[2];
-		}
-	}
-	for (i=0; i<cnt; i++) {
-		o->flags[o->vcnt+i] = flags;
-	}
 	for (i=0; i<cnt -2; i++) {
-		o->tri[o->tcnt + i][0] = o->vcnt;
-		o->tri[o->tcnt + i][1] = o->vcnt + i + 2 - dump_vertex_meta.facing;
-		o->tri[o->tcnt + i][2] = o->vcnt + i + 1 + dump_vertex_meta.facing;
+		GLuint j=i+2 - dump_vertex_meta.facing;
+		GLuint k=i+1 + dump_vertex_meta.facing;
+		dv_add_tri(o, vtx, vtx+3*j, vtx+3*k, clr, clr+4*j, clr+4*k, tex, tex+2*j, tex+2*k, nrm, nrm+3*j, nrm+3*k);
 	}
-	o->tcnt += cnt - 2;
-	o->vcnt += cnt;
 }
 
 extern void
