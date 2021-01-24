@@ -20,6 +20,8 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <stdlib.h>
 #include "dxxerror.h"
 
+#include "../misc/dump_vertex.h"
+
 #include "3d.h"
 #include "globvars.h"
 #include "gr.h"
@@ -160,7 +162,7 @@ bool g3_draw_polygon_model(void *model_ptr,grs_bitmap **model_bitmaps,vms_angvec
 				int nv = w(p+2);
 
 				Assert( nv < MAX_POINTS_PER_POLY );
-				if (g3_check_normal_facing(vp(p+4),vp(p+16)) > 0) {
+				if (dump_vertex_data || g3_check_normal_facing(vp(p+4),vp(p+16)) > 0) {
 					int i;
 
 					gr_setcolor(w(p+28));
@@ -181,7 +183,7 @@ bool g3_draw_polygon_model(void *model_ptr,grs_bitmap **model_bitmaps,vms_angvec
 				g3s_uvl *uvl_list;
 
 				Assert( nv < MAX_POINTS_PER_POLY );
-				if (g3_check_normal_facing(vp(p+4),vp(p+16)) > 0) {
+				if (dump_vertex_data || g3_check_normal_facing(vp(p+4),vp(p+16)) > 0) {
 					int i;
 					g3s_lrgb light, *lrgb_list;
 

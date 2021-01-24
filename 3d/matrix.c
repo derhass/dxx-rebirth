@@ -20,6 +20,8 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "3d.h"
 #include "globvars.h"
 
+#include "../misc/dump_vertex.h"
+
 void scale_matrix(void);
 
 //set view from x,y,z & p,b,h, zoom.  Must call one of g3_set_view_*() 
@@ -48,6 +50,10 @@ void g3_set_view_matrix(vms_vector *view_pos,vms_matrix *view_matrix,fix zoom)
 void scale_matrix(void)
 {
 	Unscaled_matrix = View_matrix;		//so we can use unscaled if we want
+
+	if (dump_vertex_data) {
+		return;
+	}
 
 	Matrix_scale = Window_scale;
 

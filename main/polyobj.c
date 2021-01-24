@@ -22,6 +22,8 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <stdlib.h>
 #include <string.h>
 
+#include "../misc/dump_vertex.h"
+
 #ifdef DRIVE
 #include "drive.h"
 #else
@@ -555,8 +557,27 @@ void draw_polygon_model(vms_vector *pos,vms_matrix *orient,vms_angvec *anim_angl
 	// Make sure that they can all fit in memory.
 	Assert( piggy_page_flushed == 0 );
 
-	g3_start_instance_matrix(pos,orient);
+	if (dump_vertex_data) {
+		vms_vector px;
+		vms_matrix ox;
+		px.x=0;
+		px.y=0;
+		px.z=0;
 
+   		ox.rvec.x=i2f(1);
+		ox.rvec.y=0;
+		ox.rvec.z=0;
+		ox.uvec.x=0;
+		ox.uvec.y=i2f(1);
+		ox.uvec.z=0;
+		ox.fvec.x=0;
+		ox.fvec.y=0;
+		ox.fvec.z=i2f(1);
+		g3_start_instance_matrix(&px, &ox);
+	} else {
+		g3_start_instance_matrix(pos,orient);
+	}
+	
 	g3_set_interp_points(robot_points);
 
 	if (flags == 0)		//draw entire object

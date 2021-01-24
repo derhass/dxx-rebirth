@@ -37,6 +37,8 @@
 #include "pngfile.h"
 #endif
 
+#include "../../misc/dump_vertex.h"
+
 #include "segment.h"
 #include "textures.h"
 #include "texmerge.h"
@@ -851,9 +853,14 @@ bool g3_draw_poly(int nv,g3s_point **pointlist)
 
 	glVertexPointer(3, GL_FLOAT, 0, vertex_array);
 	glColorPointer(4, GL_FLOAT, 0, color_array);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, nv);
+	if (dump_vertex_data) {
+		dv_add_tfan(dump_vertex_data, 0, nv, vertex_array, color_array, NULL, NULL);
+	} else {
+		glDrawArrays(GL_TRIANGLE_FAN, 0, nv);
+	}
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
+
 
 	d_free(vertex_array);
 	d_free(color_array);
@@ -932,7 +939,11 @@ bool g3_draw_tmap(int nv,g3s_point **pointlist,g3s_uvl *uvl_list,g3s_lrgb *light
 		glTexCoordPointer(2, GL_FLOAT, 0, texcoord_array);  
 	}
 	
-	glDrawArrays(GL_TRIANGLE_FAN, 0, nv);
+	if (dump_vertex_data) {
+		dv_add_tfan(dump_vertex_data, bm->gltexture->handle, nv, vertex_array, color_array, (tmap_drawer_ptr == draw_tmap)?texcoord_array:NULL, NULL);
+	} else {
+		glDrawArrays(GL_TRIANGLE_FAN, 0, nv);
+	}
 	
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
@@ -1005,7 +1016,11 @@ bool g3_draw_tmap_2(int nv, g3s_point **pointlist, g3s_uvl *uvl_list, g3s_lrgb *
 	glVertexPointer(3, GL_FLOAT, 0, vertex_array);
 	glColorPointer(4, GL_FLOAT, 0, color_array);
 	glTexCoordPointer(2, GL_FLOAT, 0, texcoord_array);  
-	glDrawArrays(GL_TRIANGLE_FAN, 0, nv);
+	if (dump_vertex_data) {
+		dv_add_tfan(dump_vertex_data, bm->gltexture->handle, nv, vertex_array, color_array, texcoord_array, NULL);
+	} else {
+		glDrawArrays(GL_TRIANGLE_FAN, 0, nv);
+	}
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);

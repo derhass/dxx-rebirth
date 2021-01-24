@@ -69,6 +69,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "editor/editor.h"
 #endif
 
+#include "../misc/dump_vertex.h"
+#include "../3d/globvars.h"
+
 void obj_detach_all(object *parent);
 void obj_detach_one(object *sub);
 
@@ -346,11 +349,42 @@ static void draw_cloaked_object(object *obj,g3s_lrgb light,fix *glow,fix64 cloak
 //draw an object which renders as a polygon model
 void draw_polygon_object(object *obj)
 {
+	static int dump_recursive = 0;
+
 	g3s_lrgb light;
 	int	imsave;
 	fix engine_glow_value[1];
 
 	light = compute_object_light(obj,NULL);
+
+	vms_vector old_view_pos;
+	vms_matrix old_view_mat;
+	fix	   old_view_zoom;
+	if (!dump_recursive && !dump_vertex_meta.idx && obj->type == OBJ_CNTRLCEN) {
+		vms_vector px;
+		vms_matrix ox;
+
+		dump_vertex_data = dv_create();
+		dump_recursive++;
+		px.x=0;
+		px.y=0;
+		px.z=0;
+
+   		ox.rvec.x=i2f(1);
+		ox.rvec.y=0;
+		ox.rvec.z=0;
+		ox.uvec.x=0;
+		ox.uvec.y=i2f(1);
+		ox.uvec.z=0;
+		ox.fvec.x=0;
+		ox.fvec.y=0;
+		ox.fvec.z=i2f(1);
+
+		old_view_pos = View_position;
+		old_view_mat = Unscaled_matrix;
+		old_view_zoom = View_zoom;
+		g3_set_view_matrix(&px, &ox, i2f(1));
+	}
 
 	//	If option set for bright players in netgame, brighten them!
 #ifdef NETWORK
@@ -455,6 +489,16 @@ void draw_polygon_object(object *obj)
 	}
 
 	Interpolation_method = imsave;
+
+	if (dump_vertex_data) {
+		dv_finish(dump_vertex_data);
+		dump_vertex_data = NULL;
+		g3_set_view_matrix(&old_view_pos, &old_view_mat, old_view_zoom);
+		if (dump_recursive) {
+			draw_polygon_object(obj);
+			dump_recursive--;
+		}
+	}
 }
 
 //------------------------------------------------------------------------------

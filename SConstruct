@@ -149,7 +149,7 @@ class DXXCommon:
 			self.env["ARCOMSTR"]     = "Archiving $TARGET ..."
 			self.env["RANLIBCOMSTR"] = "Indexing $TARGET ..."
 
-		self.env.Append(CCFLAGS = ['-Wall', '-funsigned-char', '-Werror=implicit-int', '-Werror=implicit-function-declaration', '-pthread'])
+		self.env.Append(CCFLAGS = ['-Wall', '-Wno-deprecated-declarations', '-funsigned-char', '-Werror=implicit-int', '-Werror=implicit-function-declaration', '-pthread'])
 		self.env.Append(CFLAGS = ['-std=gnu99'])
 		self.env.Append(CPPDEFINES = ['NETWORK'])
 		# Get traditional compiler environment variables
@@ -509,6 +509,7 @@ class D1XProgram(DXXProgram):
 'misc/physfsx.c',
 'misc/strio.c',
 'misc/strutil.c',
+'misc/dump_vertex.c',
 'texmap/ntmap.c',
 'texmap/scanline.c'
 #'tracker/client/tracker_client.c'
