@@ -163,9 +163,6 @@ bool g3_draw_polygon_model(void *model_ptr,grs_bitmap **model_bitmaps,vms_angvec
 
 				Assert( nv < MAX_POINTS_PER_POLY );
 				if (dump_vertex_data || g3_check_normal_facing(vp(p+4),vp(p+16)) > 0) {
-					if (dump_vertex_data) {
-						dump_vertex_meta.facing =  g3_check_normal_facing(vp(p+4),vp(p+16)) ;
-					}
 					int i;
 
 					gr_setcolor(w(p+28));
@@ -189,9 +186,6 @@ bool g3_draw_polygon_model(void *model_ptr,grs_bitmap **model_bitmaps,vms_angvec
 				if (dump_vertex_data || g3_check_normal_facing(vp(p+4),vp(p+16)) > 0) {
 					int i;
 					g3s_lrgb light, *lrgb_list;
-					if (dump_vertex_data) {
-						dump_vertex_meta.facing =  g3_check_normal_facing(vp(p+4),vp(p+16));
-					}
 
 					MALLOC(lrgb_list, g3s_lrgb, nv);
 					//calculate light from surface normal

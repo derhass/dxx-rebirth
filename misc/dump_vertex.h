@@ -14,7 +14,6 @@
 
 typedef struct {
 	unsigned int idx;
-	int facing;
 } dv_meta_t;
 
 typedef struct {

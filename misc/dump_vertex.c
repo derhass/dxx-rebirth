@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 
-dv_meta_t dump_vertex_meta = { 0,0 };
+dv_meta_t dump_vertex_meta = { 0 };
 dv_t *dump_vertex_data = NULL;
 
 static void
@@ -210,13 +210,21 @@ dv_add_tri(dv_obj_t *o, GLfloat *vtxA, GLfloat *vtxB, GLfloat *vtxC,  GLfloat *c
 			a[i] =  o->vtx[o->vcnt+2 - dump_vertex_meta.facing][i] - o->vtx[o->vcnt+0][i];
 			b[i] =  o->vtx[o->vcnt+1 + dump_vertex_meta.facing][i] - o->vtx[o->vcnt+0][i];
 			*/
-			a[i] =  o->vtx[o->vcnt+1][i] - o->vtx[o->vcnt+0][i];
-			b[i] =  o->vtx[o->vcnt+2][i] - o->vtx[o->vcnt+0][i];
+			a[i] =  o->vtx[o->vcnt+2][i] - o->vtx[o->vcnt+0][i];
+			b[i] =  o->vtx[o->vcnt+1][i] - o->vtx[o->vcnt+0][i];
 		}
 		n[0] = a[1]*b[2] - a[2]*b[1];
 		n[1] = a[2]*b[0] - a[0]*b[2];
 		n[2] = a[0]*b[1] - a[1]*b[0];
-		n[3] = sqrt(n[0] * n[0] + n[1]*n[1] + n[2]*n[2]);
+		n[3] = n[0] * n[0] + n[1]*n[1] + n[2]*n[2];
+		if (fabsf(n[3]) < 1.0e-6) {
+			/* degenrated triangle? */
+			n[0]=0.0f;
+			n[1]=1.0f;
+			n[2]=0.0f;
+			n[3]=1.0f;
+		}
+		n[3]=sqrt(n[3]);
 		for (i=0; i<3; i++) {
 			n[i] = n[i] / n[3];
 		}
@@ -231,8 +239,8 @@ dv_add_tri(dv_obj_t *o, GLfloat *vtxA, GLfloat *vtxB, GLfloat *vtxC,  GLfloat *c
 	}
 
 	o->tri[o->tcnt][0] = o->vcnt;
-	o->tri[o->tcnt][1] = o->vcnt + 1;
-	o->tri[o->tcnt][2] = o->vcnt + 2;
+	o->tri[o->tcnt][1] = o->vcnt + 2;
+	o->tri[o->tcnt][2] = o->vcnt + 1;
 	o->tcnt += 1;
 	o->vcnt += 3;
 }
@@ -253,8 +261,8 @@ dv_add_tfan(dv_t *dv, GLuint tex_idx, GLuint cnt, GLfloat *vtx, GLfloat *clr, GL
 	} else {
 		dump_vertex_meta.facing=0;
 	}
-	*/
 	dump_vertex_meta.facing = 0;
+	*/
 
 	o = dv_find_or_create_obj(dv, tex_idx);
 	if (!o) {
@@ -262,8 +270,8 @@ dv_add_tfan(dv_t *dv, GLuint tex_idx, GLuint cnt, GLfloat *vtx, GLfloat *clr, GL
 	}
 
 	for (i=0; i<cnt -2; i++) {
-		GLuint j=i+2 - dump_vertex_meta.facing;
-		GLuint k=i+1 + dump_vertex_meta.facing;
+		GLuint j=i+1;
+		GLuint k=i+2;
 		dv_add_tri(o, vtx, vtx+3*j, vtx+3*k, clr, clr+4*j, clr+4*k, tex, tex+2*j, tex+2*k, nrm, nrm+3*j, nrm+3*k);
 	}
 }
